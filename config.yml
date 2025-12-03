@@ -1,0 +1,181 @@
+retry_interval_seconds: 30
+patterns:
+  heartbeat:
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 70
+  - on: false
+    duration: 400
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 70
+  sos:
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 180
+    strength: 0
+  - on: true
+    duration: 250
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 250
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 250
+    strength: 100
+  - on: false
+    duration: 180
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  jon:
+  - on: true
+    duration: 80
+    strength: 25
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 100
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 25
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 100
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 25
+  - on: true
+    duration: 200
+    strength: 0
+  - on: true
+    duration: 50
+    strength: 25
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 100
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 50
+    strength: 25
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 100
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 100
+    strength: 40
+  - on: true
+    duration: 100
+    strength: 25
+  - on: true
+    duration: 100
+    strength: 15
+  - on: true
+    duration: 100
+    strength: 10
+  - on: true
+    duration: 100
+    strength: 5
+  - on: true
+    duration: 100
+    strength: 3
+device:
+  name: Xiaomi Smart Band 10 8DCA
+  mac_address: 04:34:C3:A4:8D:CA
+  auth_key: 13b6840ba233108fd714cbae5f7a3346
+  sar_version: 2
+web_server:
+  port: 3000
+  vibration_route_name: /vibrate

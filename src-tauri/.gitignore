@@ -4,4 +4,5 @@
 /gen/schemas
 
 modules/*
+!modules/mi_band_controller
 plugins/*
