@@ -1,1 +1,0 @@
-node ./scripts/tauri-runner.mjs android build -t aarch64 --debug
