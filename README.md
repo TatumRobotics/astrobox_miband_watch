@@ -73,7 +73,8 @@ python abtools.py init
 ```bash
 git clone https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp.git
 ```
-4. Compile the code
+4. If you have gone through all of the authentication setup, the watch is probably still connected to the Android phone. In that case, go to Settings, System, then press "Connect new phone". On this new screen (there should be a QR code), you must press "Pair" if it pops up while trying to connect to the computer. On Windows, after pressing pair, you usually have to allow the connection when the request comes up. It'll say something like "Pair Device? [Watch Name] would like to pair with this Windows device. Do you want to allow this?" and you have to press "Allow".
+5. Compile and run the code
 
 ```bash
 cargo run -p mi_band_controller --manifest-path src-tauri/Cargo.toml

@@ -1,27 +1,49 @@
+# after the watch disconnects,
+# it waits this number of seconds before closing the program
+# and trying to connect again
 retry_interval_seconds: 30
+
+# Mi Band device configuration
+device:
+  name: Xiaomi Smart Band 10 8DCA
+  mac_address: 04:34:C3:A4:8D:CA
+  auth_key: 13b6840ba233108fd714cbae5f7a3346
+  sar_version: 2
+
+# HTTP server configuration
+web_server:
+  port: 3000
+  vibration_route_name: /vibrate
+
+# i put a couple example patterns here :)
+# we should improvement them and define specific ones for
+# phone calls, notifications, sms messages, etc.
 patterns:
   heartbeat:
   - on: true
     duration: 100
     strength: 100
   - on: false
-    duration: 80
+    duration: 125
     strength: 0
   - on: true
     duration: 80
-    strength: 70
+    strength: 75
   - on: false
-    duration: 400
+    duration: 417
     strength: 0
   - on: true
     duration: 100
     strength: 100
   - on: false
-    duration: 80
+    duration: 125
     strength: 0
   - on: true
     duration: 80
-    strength: 70
+    strength: 75
+  - on: false
+    duration: 417
+    strength: 0
   sos:
   - on: true
     duration: 80
@@ -39,26 +61,386 @@ patterns:
     duration: 80
     strength: 100
   - on: false
+    duration: 240
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 240
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  sine_wave:
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+    strength: 0
+  fibonacci:
+  - on: true
+    duration: 30
+    strength: 50
+  - on: false
+    duration: 40
+    strength: 0
+  - on: true
+    duration: 30
+    strength: 58
+  - on: false
+    duration: 40
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 67
+  - on: false
+    duration: 40
+    strength: 0
+  - on: true
+    duration: 90
+    strength: 75
+  - on: false
+    duration: 40
+    strength: 0
+  - on: true
+    duration: 150
+    strength: 83
+  - on: false
+    duration: 40
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 92
+  - on: false
+    duration: 40
+    strength: 0
+  - on: true
+    duration: 390
+    strength: 100
+  - on: false
+    duration: 40
+    strength: 0
+  golden_spiral:
+  - on: true
+    duration: 50
+    strength: 60
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 81
+    strength: 70
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 131
+    strength: 80
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 212
+    strength: 90
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 343
+    strength: 100
+  - on: false
+    duration: 50
+    strength: 0
+  prime_rhythm:
+  - on: true
+    duration: 40
+    strength: 75
+  - on: false
+    duration: 60
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 77
+  - on: false
+    duration: 60
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 82
+  - on: false
+    duration: 60
+    strength: 0
+  - on: true
+    duration: 140
+    strength: 86
+  - on: false
+    duration: 60
+    strength: 0
+  - on: true
+    duration: 220
+    strength: 95
+  - on: false
+    duration: 60
+    strength: 0
+  - on: true
+    duration: 260
+    strength: 100
+  - on: false
+    duration: 60
+    strength: 0
+  exponential_decay:
+  - on: true
+    duration: 300
+    strength: 100
+  - on: false
+    duration: 90
+    strength: 0
+  - on: true
     duration: 180
+    strength: 88
+  - on: false
+    duration: 54
     strength: 0
   - on: true
-    duration: 250
+    duration: 108
+    strength: 81
+  - on: false
+    duration: 32
+    strength: 0
+  - on: true
+    duration: 65
+    strength: 76
+  - on: false
+    duration: 30
+    strength: 0
+  - on: true
+    duration: 39
+    strength: 74
+  - on: false
+    duration: 30
+    strength: 0
+  rock_beat:
+  - on: true
+    duration: 120
     strength: 100
   - on: false
     duration: 80
     strength: 0
   - on: true
-    duration: 250
+    duration: 60
+    strength: 60
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 85
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 60
+    strength: 60
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 120
     strength: 100
   - on: false
     duration: 80
     strength: 0
   - on: true
-    duration: 250
+    duration: 60
+    strength: 60
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 85
+  - on: false
+    duration: 80
+    strength: 0
+  waltz:
+  - on: true
+    duration: 150
     strength: 100
   - on: false
-    duration: 180
+    duration: 100
     strength: 0
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 100
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 150
+    strength: 0
+  - on: true
+    duration: 150
+    strength: 100
+  - on: false
+    duration: 100
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 100
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 100
+    strength: 0
+  staircase:
+  - on: true
+    duration: 80
+    strength: 30
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 53
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 77
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 77
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 53
+  - on: false
+    duration: 50
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 30
+  - on: false
+    duration: 50
+    strength: 0
+  hi:
   - on: true
     duration: 80
     strength: 100
@@ -74,7 +456,59 @@ patterns:
   - on: true
     duration: 80
     strength: 100
-  jon:
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 240
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  ok:
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 240
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+    strength: 0
+  - on: true
+    duration: 240
+    strength: 100
+  jons_idea:
   - on: true
     duration: 80
     strength: 25
@@ -171,11 +605,3 @@ patterns:
   - on: true
     duration: 100
     strength: 3
-device:
-  name: Xiaomi Smart Band 10 8DCA
-  mac_address: 04:34:C3:A4:8D:CA
-  auth_key: 13b6840ba233108fd714cbae5f7a3346
-  sar_version: 2
-web_server:
-  port: 3000
-  vibration_route_name: /vibrate

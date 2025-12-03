@@ -39,6 +39,7 @@ async fn main() -> Result<()> {
         connect_type: ConnectType::SPP,
         force_android: true,
     };
+
     let exit_after_delay = move |message: String, exit_code: i32| async move {
         log::error!("{} Restarting program in {} seconds...", message, retry_interval);
         tokio::time::sleep(Duration::from_secs(retry_interval)).await;
