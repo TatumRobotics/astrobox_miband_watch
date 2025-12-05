@@ -1,0 +1,16 @@
+[Unit]
+Description=Mi Band Controller
+After=bluetooth.target network.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=tatum
+ExecStart=/home/tatum/astrobox_miband_watch/target/release/mi_band_controller
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+SupplementaryGroups=bluetooth
+
+[Install]
+WantedBy=multi-user.target

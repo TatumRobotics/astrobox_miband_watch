@@ -9,6 +9,9 @@ device:
   mac_address: 04:34:C3:A4:8D:CA
   auth_key: 13b6840ba233108fd714cbae5f7a3346
   sar_version: 2
+  # set this to something like 10000 ms to get enough time to pair it.
+  # hopefully that is a one time thing per watch.
+  connection_delay_ms: 300
 
 # HTTP server configuration
 web_server:
@@ -16,7 +19,7 @@ web_server:
   vibration_route_name: /vibrate
 
 # i put a couple example patterns here :)
-# we should improvement them and define specific ones for
+# we should improve them and define specific ones for
 # phone calls, notifications, sms messages, etc.
 patterns:
   heartbeat:
@@ -44,6 +47,65 @@ patterns:
   - on: false
     duration: 417
     strength: 0
+
+
+  modified_heartbeat:
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+    strength: 0
+  - on: true
+    duration: 900
+    strength: 80
+  - on: false
+    duration: 100
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+    strength: 0
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+    strength: 0
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+    strength: 0
+
+
   sos:
   - on: true
     duration: 80
@@ -96,6 +158,8 @@ patterns:
   - on: true
     duration: 80
     strength: 100
+
+
   sine_wave:
   - on: true
     duration: 60
@@ -169,6 +233,8 @@ patterns:
   - on: false
     duration: 30
     strength: 0
+
+
   fibonacci:
   - on: true
     duration: 30
@@ -212,7 +278,9 @@ patterns:
   - on: false
     duration: 40
     strength: 0
-  golden_spiral:
+
+  
+  spiral:
   - on: true
     duration: 50
     strength: 60
@@ -243,7 +311,9 @@ patterns:
   - on: false
     duration: 50
     strength: 0
-  prime_rhythm:
+
+
+  rhythm:
   - on: true
     duration: 40
     strength: 75
@@ -280,6 +350,8 @@ patterns:
   - on: false
     duration: 60
     strength: 0
+
+
   exponential_decay:
   - on: true
     duration: 300
@@ -311,6 +383,8 @@ patterns:
   - on: false
     duration: 30
     strength: 0
+
+
   rock_beat:
   - on: true
     duration: 120
@@ -354,6 +428,8 @@ patterns:
   - on: false
     duration: 80
     strength: 0
+
+
   waltz:
   - on: true
     duration: 150
@@ -391,123 +467,8 @@ patterns:
   - on: false
     duration: 100
     strength: 0
-  staircase:
-  - on: true
-    duration: 80
-    strength: 30
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 53
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 77
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 77
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 53
-  - on: false
-    duration: 50
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 30
-  - on: false
-    duration: 50
-    strength: 0
-  hi:
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 240
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  ok:
-  - on: true
-    duration: 240
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 240
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 240
-    strength: 100
-  - on: false
-    duration: 240
-    strength: 0
-  - on: true
-    duration: 240
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 80
-    strength: 100
-  - on: false
-    duration: 80
-    strength: 0
-  - on: true
-    duration: 240
-    strength: 100
+  
+
   jons_idea:
   - on: true
     duration: 80

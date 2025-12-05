@@ -2,7 +2,7 @@
 
 A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP. This program connects to a Mi Band 10, authenticates, and exposes an HTTP API for triggering vibration patterns. It uses code from and is based on the [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG). They documented the Xiaomi protocol and provide the library that this program uses to connect/authenticate/communicate with the watch.
 
-# What does the code do?
+## What does the code do?
 
 1. It scans for and connects to the Mi Band with Bluetooth
 2. Authenticates using a token from the Mi Fitness app
@@ -65,24 +65,39 @@ web_server:
 ### Initial Setup
 
 1. [Install Rust](https://rust-lang.org/tools/install/)
-2. From the main folder, initialize AstroBox's code:
+2. From the main folder, clone AstroBox's code:
 ```bash
-python abtools.py init
+python setup.py
 ```
-3. Add the btclassic-ssp module. In the src-tauri/modules folder, run
+3. Run this command in the src-tauri/modules/btclassic-spp folder to make the bluetooth module public. This must be done because AstroBox intended it for use in a private app, but it works great for our use case. The pairing proccess also needs to "trust" the watch on linux, so the second patch fixes that. The "trust" makes the watch not show the "pair" prompt when bluetooth is disconnected.
 ```bash
-git clone https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp.git
+git apply ../../../patches/btclassic-spp-public-api.patch
+git apply ../../../patches/btclassic-spp-linux-pairing-trust.patch
 ```
-4. If you have gone through all of the authentication setup, the watch is probably still connected to the Android phone. In that case, go to Settings, System, then press "Connect new phone". On this new screen (there should be a QR code), you must press "Pair" if it pops up while trying to connect to the computer. On Windows, after pressing pair, you usually have to allow the connection when the request comes up. It'll say something like "Pair Device? [Watch Name] would like to pair with this Windows device. Do you want to allow this?" and you have to press "Allow".
-5. Compile and run the code
+
+4. Install these packages that AstroBox requires on Linux. These are because AstroBox's code is meant to run with Tauri, but since we aren't using that part of the app, ideally we would be able to remove more dependencies.
+```bash
+sudo apt install libglib2.0-dev
+sudo apt install libgtk-3-dev
+sudo apt install libwebkit2gtk-4.1-dev
+```
+5. If you have gone through all of the authentication setup, the watch is probably still connected to the Android phone. In that case, go to Settings, System, then press "Connect new phone". On this new screen (there should be a QR code), you must press "Pair" if it pops up while trying to connect to the computer. On Windows, after pressing pair, you usually have to allow the connection when the request comes up. It'll say something like "Pair Device? [Watch Name] would like to pair with this Windows device. Do you want to allow this?" and you have to press "Allow".
+6. Compile and run the code
 
 ```bash
 cargo run -p mi_band_controller --manifest-path src-tauri/Cargo.toml
 ```
 
-5. Set up some sort of linux service or other method of restarting the app when it shuts down. This is because it reconnects to the watch by shutting down after 30 seconds (the number of seconds is configurable in config.yml). It expects to be restarted externally. It isn't ideal, but restarting within the same proccess might be a bit tricky.
+7. Set up the linux service in `mi_band_controller.service`. This is required because it reconnects to the watch by shutting down after 30 seconds (the number of seconds is configurable in config.yml). It expects to be restarted externally. It isn't ideal, but restarting within the same proccess might be a bit tricky. For building the app to get an executable for the service, run:
+```bash
+cargo build -p mi_band_controller --manifest-path src-tauri/Cargo.toml --release
+cp config.yml src-tauri/target/release/config.yml
+```
+(it took 22 minutes to compile that on a pi! we really should get rid of that Tauri dependency to compile it faster)
 
 ## The Code
+
+All of the Rust code can be found in the `src-tauri/modules/mi_band_controller/src` folder.
 
 ### device.rs
 - Bluetooth SPP connection using the `btclassic-spp` plugin

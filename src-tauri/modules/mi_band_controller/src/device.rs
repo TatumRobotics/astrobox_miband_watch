@@ -23,10 +23,8 @@ pub struct XiaomiBand {
 pub async fn connect_to_device(device_addr: &str) -> Result<()> {
     log::info!("Attempting to connect to {}...", device_addr);
     
-    match btclassic_spp::desktop::imp::core::connect_impl(device_addr) {
+    match btclassic_spp::core::connect_impl(device_addr) {
         Ok(true) => {
-            btclassic_spp::desktop::imp::core::start_subscription_impl()
-                .context("Failed to start subscription")?;
             log::info!("Connected to device {}", device_addr);
             Ok(())
         }
@@ -38,7 +36,7 @@ pub async fn connect_to_device(device_addr: &str) -> Result<()> {
 pub fn create_sender() -> impl Fn(Vec<u8>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), corelib::device::xiaomi::SendError>> + Send>> + Clone {
     move |data: Vec<u8>| {
         Box::pin(async move {
-            btclassic_spp::desktop::imp::core::send_impl(&data)
+            btclassic_spp::core::send_impl(&data)
                 .map_err(|e| {
                     log::error!("SPP send error: {}", e);
                     corelib::device::xiaomi::SendError::Io(e.to_string())
@@ -64,10 +62,11 @@ pub async fn create_device(band: XiaomiBand) -> Result<corelib::device::DeviceCo
     .await
 }
 
-pub fn set_data_listener_impl(device_addr: String, disconnect_tx: mpsc::UnboundedSender<()>) -> Result<()> {
+pub fn set_data_listener_and_start_subscription(device_addr: String, disconnect_tx: mpsc::UnboundedSender<()>) -> Result<()> {
     let runtime_handle = tokio::runtime::Handle::current();
     
-    btclassic_spp::desktop::imp::core::set_data_listener_impl(Box::new(move |result| {
+    // Set the data listener first (required on Linux before starting subscription)
+    btclassic_spp::core::set_data_listener_impl(Box::new(move |result| {
         match result {
             Ok(data) => {
                 let rt = runtime_handle.clone();
@@ -81,6 +80,10 @@ pub fn set_data_listener_impl(device_addr: String, disconnect_tx: mpsc::Unbounde
         }
     }))
     .context("Failed to set data listener")?;
+    
+    // Now start the subscription (this requires the listener to be set on Linux)
+    btclassic_spp::core::start_subscription_impl()
+        .context("Failed to start subscription")?;
     
     Ok(())
 }

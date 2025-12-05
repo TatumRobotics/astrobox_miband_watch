@@ -54,7 +54,12 @@ async fn main() -> Result<()> {
     if let Err(e) = device::connect_to_device(&device_addr).await {
         exit_after_delay(format!("Failed to connect to device: {}.", e), EXIT_CODE_CONNECTION_FAILED).await;
     }
-    device::set_data_listener_impl(device_addr.clone(), disconnect_tx)?;
+    
+    // set data listener and start subscription (order is important on Linux)
+    device::set_data_listener_and_start_subscription(device_addr.clone(), disconnect_tx)?;
+
+    // wait to pair first
+    tokio::time::sleep(Duration::from_millis(config.device.connection_delay_ms.unwrap_or(10000))).await;
 
     // create and authenticate the device
     match device::create_device(band).await {

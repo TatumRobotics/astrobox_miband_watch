@@ -1,22 +1,10 @@
 [workspace]
 members = [
-    "modules/account",
-    "modules/app_wasm",
-    "modules/bluetooth",
     "modules/core",
-    "modules/frontbridge",
     "modules/mi_band_controller",
     "modules/pb",
-    "modules/pluginsystem",
-    "modules/provider",
-    "plugins/btclassic-spp",
-    "plugins/live-activity",
+    "modules/btclassic-spp",
 ]
-exclude = [
-    "modules/app_esp32s3",
-]
+
 resolver = "3"
 
-default-members = [
-    "modules/account",
-]

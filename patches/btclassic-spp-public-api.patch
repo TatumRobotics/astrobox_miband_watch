@@ -1,0 +1,26 @@
+﻿diff --git a/src/lib.rs b/src/lib.rs
+index 1a7e79a..67c365f 100755
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -6,7 +6,7 @@ use tauri::{
+ pub use models::*;
+ 
+ #[cfg(desktop)]
+-mod desktop;
++pub(crate) mod desktop;
+ #[cfg(mobile)]
+ mod mobile;
+ 
+@@ -20,6 +20,12 @@ pub use desktop::BtclassicSpp;
+ #[cfg(mobile)]
+ pub use mobile::BtclassicSpp;
+ 
++// Re-export core functions for standalone usage (non-Tauri contexts)
++#[cfg(desktop)]
++pub mod core {
++    pub use super::desktop::imp::core::*;
++}
++
+ /// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the btclassic-spp APIs.
+ pub trait BtclassicSppExt<R: Runtime> {
+     fn btclassic_spp(&self) -> &BtclassicSpp<R>;

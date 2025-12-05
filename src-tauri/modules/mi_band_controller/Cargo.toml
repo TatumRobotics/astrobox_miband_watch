@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 corelib = { path = "../core" }
 pb = { path = "../pb" }
-btclassic-spp = { path = "../../plugins/btclassic-spp" }
+btclassic-spp = { path = "../btclassic-spp" }
 tokio = { version = "1.48.0", features = ["full"] }
 anyhow = "1.0"
 log = "0.4"

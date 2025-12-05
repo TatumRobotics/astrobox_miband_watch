@@ -28,6 +28,7 @@ pub struct DeviceConfig {
     pub mac_address: String,
     pub auth_key: String,
     pub sar_version: u32,
+    pub connection_delay_ms: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

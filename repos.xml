@@ -1,32 +1,8 @@
 <repos>
     <repo
-        name="Rust module: app"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-App"
-        path="src-tauri/modules/app"
-        branch="main"
-        visibility="private"
-    />
-
-    <repo
-        name="Rust module: app_esp32s3"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-App-ESP32S3"
-        path="src-tauri/modules/app_esp32s3"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Rust module: app_wasm"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-AppWasm"
-        path="src-tauri/modules/app_wasm"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Rust module: bluetooth"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-Bluetooth"
-        path="src-tauri/modules/bluetooth"
+        name="Rust module: btclassic-ssp"
+        url="https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp"
+        path="src-tauri/modules/btclassic-spp"
         branch="main"
         visibility="public"
     />
@@ -40,74 +16,10 @@
     />
 
     <repo
-        name="Rust module: frontbridge"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-FrontBridge"
-        path="src-tauri/modules/frontbridge"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
         name="Rust module: pb"
         url="https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb"
         path="src-tauri/modules/pb"
         branch="main"
         visibility="public"
-    />
-
-    <repo
-        name="Rust module: pluginsystem"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-PluginSystem"
-        path="src-tauri/modules/pluginsystem"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="WIT Files for Rust module: pluginsystem"
-        url="https://github.com/AstralSightStudios/AstroBox-Plugin-WIT"
-        path="src-tauri/modules/pluginsystem/wit"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Rust module: provider"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-Provider"
-        path="src-tauri/modules/provider"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Rust module: account"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Module-Account"
-        path="src-tauri/modules/account"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Tauri plugin: btclassic-spp"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp"
-        path="src-tauri/plugins/btclassic-spp"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Tauri plugin: live-activity"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-Plugin-LiveActivity"
-        path="src-tauri/plugins/live-activity"
-        branch="main"
-        visibility="public"
-    />
-
-    <repo
-        name="Frontend: WebUI"
-        url="https://github.com/AstralSightStudios/AstroBox-NG-WebUI"
-        path="web"
-        branch="main"
-        visibility="private"
     />
 </repos>
