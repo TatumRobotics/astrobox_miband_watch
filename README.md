@@ -74,6 +74,7 @@ python setup.py
 git apply ../../../patches/btclassic-spp-public-api.patch
 git apply ../../../patches/btclassic-spp-linux-pairing-trust.patch
 ```
+Note on applying patches: if you clone the repo on Windows, apply the patches on Windows too (because of the different line endings). That requires running setup.py on Windows too.
 
 4. Install these packages that AstroBox requires on Linux. These are because AstroBox's code is meant to run with Tauri, but since we aren't using that part of the app, ideally we would be able to remove more dependencies.
 ```bash

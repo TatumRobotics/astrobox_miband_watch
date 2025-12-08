@@ -6,6 +6,7 @@ Wants=bluetooth.target
 [Service]
 Type=simple
 User=tatum
+WorkingDirectory=/home/tatum/astrobox_miband_watch/src-tauri/target/release
 ExecStart=/home/tatum/astrobox_miband_watch/target/release/mi_band_controller
 Restart=always
 RestartSec=5
