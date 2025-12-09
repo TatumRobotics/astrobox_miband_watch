@@ -5,28 +5,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 xml_path = Path("repos.xml")
-
-if not xml_path.exists():
-    print("Error: repos.xml not found")
-    exit(1)
-
 root = ET.parse(xml_path).getroot()
 
 for repo in root.findall("repo"):
-    name = repo.get("name", "(unnamed)")
+    name = repo.get("name")
     url = repo.get("url")
     path = repo.get("path")
-    branch = repo.get("branch", "main")
-    visibility = repo.get("visibility", "public").lower()
-    
-    if not url or not path:
-        print(f"Skipping {name}: missing url or path")
-        continue
-    
-    if visibility == "private":
-        print(f"Skipping {name}: private repo")
-        continue
-    
+    branch = repo.get("branch", "main")    
     target = Path(path)
     
     if target.exists():
@@ -44,6 +29,6 @@ for repo in root.findall("repo"):
     )
     
     if result.returncode != 0:
-        print(f"  Failed: {result.stderr.strip()}")
+        print(f"Failed: {result.stderr.strip()}")
     else:
-        print(f"  Done")
+        print("Done")

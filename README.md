@@ -2,6 +2,11 @@
 
 A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP on a Raspberry Pi. This program connects to a Mi Band 10, authenticates, and exposes an HTTP API for triggering vibration patterns. It uses code from and is based on the [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG). They documented the Xiaomi protocol and provide the library that this program uses to connect/authenticate/communicate with the watch.
 
+The code uses the following AstroBox modules:
+- The core (authentication and connection) - [core](https://github.com/AstralSightStudios/AstroBox-NG-Module-Core)
+- The protocol - [pb](https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb)
+- Bluetooth - [btclassic-spp](https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp)
+
 ## What does the code do?
 
 1. It scans for and connects to the Mi Band with Bluetooth
@@ -32,8 +37,8 @@ In the config.yml file in the main folder, there are a few settings that must be
 ```yaml
 device:
   name: "Xiaomi Smart Band 10 8DCA" # the name of the watch may be different from this, but check what it appears as in the Bluetooth connections menu on the phone/computer
-  mac_address: "04:34:C3:A4:8D:CA"  # paste in the watch's MAC address, found in the Settings, in the About section
-  auth_key: "13b6840ba233108fd714cbae5f7a3346"  # paste in the token from the official Mi Fitness app
+  mac_address: "04:34:C3:A4:8D:CA"  # paste in the watch's MAC address, found in the watch's Settings, in the About section
+  auth_key: "13b6840ba233108fd714cbae5f7a3346"  # paste in the token from the folder of the official Mi Fitness app
   ```
 
 Adding custom vibration patterns can be done by changing the patterns field in the config file. Here's an example one with two quick pulses.
@@ -46,7 +51,6 @@ patterns:
     strength: 100
   - on: false
     duration: 100
-    strength: 0
   - on: true
     duration: 100
     strength: 100
@@ -114,6 +118,9 @@ All of the Rust code can be found in the `src-tauri/modules/mi_band_controller/s
 
 ### server.rs
 - POST endpoint `/vibrate` accepts JSON: `{"pattern": "heartbeat"}` or any of the other patterns defined in the config
+
+### config.rs
+- Parses config YML file to get the device info, vibration patterns, and web server info
 
 ## API Usage
 
