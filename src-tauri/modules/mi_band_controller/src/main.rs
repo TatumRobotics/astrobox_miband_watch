@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
         exit_after_delay(format!("Failed to connect to device: {}.", e), EXIT_CODE_CONNECTION_FAILED).await;
     }
     
-    // set data listener and start subscription (order is important on Linux)
+    // set data listener and start subscription
     device::set_data_listener_and_start_subscription(device_addr.clone(), disconnect_tx)?;
 
     // wait to pair first

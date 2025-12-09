@@ -20,6 +20,12 @@ pub struct XiaomiBand {
     pub force_android: bool,
 }
 
+// this functions triggers a connection with the watch:
+// the connect_impl function is a per-platform implementation and causes a lot of trouble
+//   on windows, it sometimes fails after the watch is rebooted
+//   on linux, during the first few minutes after the watch is rebooted, sometimes it fails with this error:
+//      SPP send error: Transport endpoint is not connected (os error 107)
+//   that needs to be investigated further.
 pub async fn connect_to_device(device_addr: &str) -> Result<()> {
     log::info!("Attempting to connect to {}...", device_addr);
     
@@ -33,6 +39,7 @@ pub async fn connect_to_device(device_addr: &str) -> Result<()> {
     }
 }
 
+// the sender's purpose is to tell AstroBox's library what to do with the bluetooth packets. it connects the corelib to the btclassis_spp library.
 pub fn create_sender() -> impl Fn(Vec<u8>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), corelib::device::xiaomi::SendError>> + Send>> + Clone {
     move |data: Vec<u8>| {
         Box::pin(async move {
@@ -49,6 +56,7 @@ pub fn create_sender() -> impl Fn(Vec<u8>) -> std::pin::Pin<Box<dyn std::future:
 pub async fn create_device(band: XiaomiBand) -> Result<corelib::device::DeviceConnectionInfo> {
     let sender = create_sender();
     
+    // this is an AstroBox function that handles authentication with the auth key
     create_miwear_device(
         tokio::runtime::Handle::current(),
         band.device_name,
@@ -65,7 +73,7 @@ pub async fn create_device(band: XiaomiBand) -> Result<corelib::device::DeviceCo
 pub fn set_data_listener_and_start_subscription(device_addr: String, disconnect_tx: mpsc::UnboundedSender<()>) -> Result<()> {
     let runtime_handle = tokio::runtime::Handle::current();
     
-    // Set the data listener first (required on Linux before starting subscription)
+    // listen for disconnects
     btclassic_spp::core::set_data_listener_impl(Box::new(move |result| {
         match result {
             Ok(data) => {
@@ -75,13 +83,13 @@ pub fn set_data_listener_and_start_subscription(device_addr: String, disconnect_
             }
             Err(e) => {
                 log::error!("Connection error: {}", e);
+                // this will trigger the program to exit, then restart after a delay
                 let _ = disconnect_tx.send(());
             }
         }
     }))
     .context("Failed to set data listener")?;
     
-    // Now start the subscription (this requires the listener to be set on Linux)
     btclassic_spp::core::start_subscription_impl()
         .context("Failed to start subscription")?;
     
@@ -97,6 +105,7 @@ pub async fn vibrate_pattern(device_addr: &str, segments: Vec<Segment>, name: &s
     
     corelib::ecs::with_rt_mut(move |rt| {
         if let Some(dev) = rt.find_entity_by_id_mut::<corelib::device::xiaomi::XiaomiDevice>(&device_addr) {
+            // create packet in the format AstroBox's library expects
             let packet = WearPacket {
                 r#type: WearType::System as i32,
                 id: SystemId::TestVibrator as u32,

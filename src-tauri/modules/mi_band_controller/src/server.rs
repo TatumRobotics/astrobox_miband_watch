@@ -7,8 +7,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use pb::xiaomi::protocol::vibrator_effect::Segment;
-
 use crate::config::PatternConfig;
 use crate::device;
 
@@ -29,13 +27,17 @@ pub struct AppState {
     pub patterns: Arc<PatternConfig>,
 }
 
+// parses the pattern and picks the correct one from the config (if it exists!). then triggers the bluetooth command.
 async fn vibrate_handler(
     State(state): State<AppState>,
     Json(payload): Json<VibrationRequest>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let pattern_name = payload.pattern.to_lowercase();
     
-    let segments = match state.patterns.get(&pattern_name).cloned() {
+    // patterns are made up of many segments.
+    // segments are made up of on/off, duration, and strength.
+    // that's defined by the xiaomi protocol.
+    let pattern = match state.patterns.get(&pattern_name).cloned() {
         Some(seg) => seg,
         None => {
             let available_patterns: Vec<String> = state.patterns.keys().cloned().collect();
@@ -49,11 +51,11 @@ async fn vibrate_handler(
         }
     };
 
-    let pattern: Vec<Segment> = segments.into_iter().map(Into::into).collect();
     device::vibrate_pattern(&state.device_addr, pattern, &payload.pattern).await;
     Ok(StatusCode::OK)
 }
 
+// listen for vibration requests at the configured port
 pub async fn start_server(
     app_state: AppState,
     route: String,

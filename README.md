@@ -1,6 +1,6 @@
 # Mi Band 10 Controller for Notifications on the Tatum1 Robot
 
-A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP. This program connects to a Mi Band 10, authenticates, and exposes an HTTP API for triggering vibration patterns. It uses code from and is based on the [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG). They documented the Xiaomi protocol and provide the library that this program uses to connect/authenticate/communicate with the watch.
+A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP on a Raspberry Pi. This program connects to a Mi Band 10, authenticates, and exposes an HTTP API for triggering vibration patterns. It uses code from and is based on the [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG). They documented the Xiaomi protocol and provide the library that this program uses to connect/authenticate/communicate with the watch.
 
 ## What does the code do?
 
@@ -75,6 +75,7 @@ git apply ../../../patches/btclassic-spp-public-api.patch
 git apply ../../../patches/btclassic-spp-linux-pairing-trust.patch
 ```
 Note on applying patches: if you clone the repo on Windows, apply the patches on Windows too (because of the different line endings). That requires running setup.py on Windows too.
+Note on creating more patches in the future if you need to: don't use the Windows CMD, use Linux or git bash. The diff uses utf-16 instead of utf-8 on Windows's PowerShell/CMD I think, which doesn't work with git.
 
 4. Install these packages that AstroBox requires on Linux. These are because AstroBox's code is meant to run with Tauri, but since we aren't using that part of the app, ideally we would be able to remove more dependencies.
 ```bash

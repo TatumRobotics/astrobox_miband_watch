@@ -1,7 +1,7 @@
 # after the watch disconnects,
 # it waits this number of seconds before closing the program
 # and trying to connect again
-retry_interval_seconds: 30
+retry_interval_seconds: 15
 
 # Mi Band device configuration
 device:
@@ -11,6 +11,8 @@ device:
   sar_version: 2
   # set this to something like 10000 ms to get enough time to pair it.
   # hopefully that is a one time thing per watch.
+  # also, when the watch restarts, sometimes it needs a bit of time
+  # so a future improvement would be to have different delays depending on the situation
   connection_delay_ms: 300
 
 # HTTP server configuration
@@ -18,35 +20,59 @@ web_server:
   port: 3000
   vibration_route_name: /vibrate
 
-# i put a couple example patterns here :)
+# there's a couple example patterns here
 # we should improve them and define specific ones for
 # phone calls, notifications, sms messages, etc.
+
 patterns:
+# note: from testing with Elane, we found that it's difficult for her to feel the vibrations,
+# so these strength=100 ones are possibly the only viable way for her to get important notifications.
+# but a per-user "pattern strength" in the database for the patterns would be the best option for this in the future.
+  strongest:
+  - on: true
+    duration: 3000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
   heartbeat:
   - on: true
     duration: 100
     strength: 100
   - on: false
     duration: 125
-    strength: 0
   - on: true
     duration: 80
     strength: 75
   - on: false
     duration: 417
-    strength: 0
   - on: true
     duration: 100
     strength: 100
   - on: false
     duration: 125
-    strength: 0
   - on: true
     duration: 80
     strength: 75
   - on: false
     duration: 417
-    strength: 0
 
 
   modified_heartbeat:
@@ -55,55 +81,46 @@ patterns:
     strength: 100
   - on: false
     duration: 125
-    strength: 0
   - on: true
     duration: 80
     strength: 75
   - on: false
     duration: 417
-    strength: 0
   - on: true
     duration: 100
     strength: 100
   - on: false
     duration: 125
-    strength: 0
   - on: true
     duration: 80
     strength: 75
   - on: false
     duration: 417
-    strength: 0
   - on: true
     duration: 900
     strength: 80
   - on: false
     duration: 100
-    strength: 0
   - on: true
     duration: 100
     strength: 100
   - on: false
     duration: 125
-    strength: 0
   - on: true
     duration: 80
     strength: 75
   - on: false
     duration: 417
-    strength: 0
   - on: true
     duration: 100
     strength: 100
   - on: false
     duration: 125
-    strength: 0
   - on: true
     duration: 80
     strength: 75
   - on: false
     duration: 417
-    strength: 0
 
 
   sos:
@@ -112,49 +129,41 @@ patterns:
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 80
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 80
     strength: 100
   - on: false
     duration: 240
-    strength: 0
   - on: true
     duration: 240
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 240
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 240
     strength: 100
   - on: false
     duration: 240
-    strength: 0
   - on: true
     duration: 80
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 80
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 80
     strength: 100
@@ -166,73 +175,61 @@ patterns:
     strength: 65
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 95
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 95
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 65
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 35
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 35
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 65
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 95
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 95
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 65
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 35
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 60
     strength: 35
   - on: false
     duration: 30
-    strength: 0
 
 
   fibonacci:
@@ -241,43 +238,36 @@ patterns:
     strength: 50
   - on: false
     duration: 40
-    strength: 0
   - on: true
     duration: 30
     strength: 58
   - on: false
     duration: 40
-    strength: 0
   - on: true
     duration: 60
     strength: 67
   - on: false
     duration: 40
-    strength: 0
   - on: true
     duration: 90
     strength: 75
   - on: false
     duration: 40
-    strength: 0
   - on: true
     duration: 150
     strength: 83
   - on: false
     duration: 40
-    strength: 0
   - on: true
     duration: 240
     strength: 92
   - on: false
     duration: 40
-    strength: 0
   - on: true
     duration: 390
     strength: 100
   - on: false
     duration: 40
-    strength: 0
 
   
   spiral:
@@ -286,31 +276,26 @@ patterns:
     strength: 60
   - on: false
     duration: 50
-    strength: 0
   - on: true
     duration: 81
     strength: 70
   - on: false
     duration: 50
-    strength: 0
   - on: true
     duration: 131
     strength: 80
   - on: false
     duration: 50
-    strength: 0
   - on: true
     duration: 212
     strength: 90
   - on: false
     duration: 50
-    strength: 0
   - on: true
     duration: 343
     strength: 100
   - on: false
     duration: 50
-    strength: 0
 
 
   rhythm:
@@ -319,37 +304,31 @@ patterns:
     strength: 75
   - on: false
     duration: 60
-    strength: 0
   - on: true
     duration: 60
     strength: 77
   - on: false
     duration: 60
-    strength: 0
   - on: true
     duration: 100
     strength: 82
   - on: false
     duration: 60
-    strength: 0
   - on: true
     duration: 140
     strength: 86
   - on: false
     duration: 60
-    strength: 0
   - on: true
     duration: 220
     strength: 95
   - on: false
     duration: 60
-    strength: 0
   - on: true
     duration: 260
     strength: 100
   - on: false
     duration: 60
-    strength: 0
 
 
   exponential_decay:
@@ -358,31 +337,26 @@ patterns:
     strength: 100
   - on: false
     duration: 90
-    strength: 0
   - on: true
     duration: 180
     strength: 88
   - on: false
     duration: 54
-    strength: 0
   - on: true
     duration: 108
     strength: 81
   - on: false
     duration: 32
-    strength: 0
   - on: true
     duration: 65
     strength: 76
   - on: false
     duration: 30
-    strength: 0
   - on: true
     duration: 39
     strength: 74
   - on: false
     duration: 30
-    strength: 0
 
 
   rock_beat:
@@ -391,43 +365,36 @@ patterns:
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 60
     strength: 60
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 100
     strength: 85
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 60
     strength: 60
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 120
     strength: 100
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 60
     strength: 60
   - on: false
     duration: 80
-    strength: 0
   - on: true
     duration: 100
     strength: 85
   - on: false
     duration: 80
-    strength: 0
 
 
   waltz:
@@ -436,37 +403,31 @@ patterns:
     strength: 100
   - on: false
     duration: 100
-    strength: 0
   - on: true
     duration: 80
     strength: 50
   - on: false
     duration: 100
-    strength: 0
   - on: true
     duration: 80
     strength: 50
   - on: false
     duration: 150
-    strength: 0
   - on: true
     duration: 150
     strength: 100
   - on: false
     duration: 100
-    strength: 0
   - on: true
     duration: 80
     strength: 50
   - on: false
     duration: 100
-    strength: 0
   - on: true
     duration: 80
     strength: 50
   - on: false
     duration: 100
-    strength: 0
   
 
   jons_idea:
@@ -509,9 +470,8 @@ patterns:
   - on: true
     duration: 80
     strength: 25
-  - on: true
+  - on: false
     duration: 200
-    strength: 0
   - on: true
     duration: 50
     strength: 25

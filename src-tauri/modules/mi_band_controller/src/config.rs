@@ -3,24 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use pb::xiaomi::protocol::vibrator_effect::Segment;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct VibrationSegment {
-    pub on: bool,
-    pub duration: u32,
-    pub strength: u32,
-}
-
-impl From<VibrationSegment> for Segment {
-    fn from(seg: VibrationSegment) -> Self {
-        Segment {
-            on: seg.on,
-            duration: seg.duration,
-            strength: if seg.on { Some(seg.strength) } else { None },
-        }
-    }
-}
-
-pub type PatternConfig = HashMap<String, Vec<VibrationSegment>>;
+pub type PatternConfig = HashMap<String, Vec<Segment>>;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DeviceConfig {
