@@ -2,7 +2,7 @@
 
 A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP on a Raspberry Pi. This program connects to a Mi Band 10, authenticates, and exposes an HTTP API for triggering vibration patterns. It uses code from and is based on the [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG). They documented the Xiaomi protocol and provide the library that this program uses to connect/authenticate/communicate with the watch.
 
-The code uses the following AstroBox modules:
+The code uses the following AstroBox modules developed by AstralSight Studios under the GNU Affero General Public License at the time of writing:
 - The core (authentication and connection) - [core](https://github.com/AstralSightStudios/AstroBox-NG-Module-Core)
 - The protocol - [pb](https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb)
 - Bluetooth - [btclassic-spp](https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp)
@@ -68,7 +68,7 @@ web_server:
 
 ### Initial Setup
 
-1. [Install Rust](https://rust-lang.org/tools/install/)
+1. Install: [Rust](https://rust-lang.org/tools/install/), Git, and Python
 2. From the main folder, clone AstroBox's code:
 ```bash
 python setup.py
@@ -79,21 +79,20 @@ git apply ../../../patches/btclassic-spp-public-api.patch
 git apply ../../../patches/btclassic-spp-linux-pairing-trust.patch
 ```
 Note on applying patches: if you clone the repo on Windows, apply the patches on Windows too (because of the different line endings). That requires running setup.py on Windows too.
-Note on creating more patches in the future if you need to: don't use the Windows CMD, use Linux or git bash. The diff uses utf-16 instead of utf-8 on Windows's PowerShell/CMD I think, which doesn't work with git.
 
-4. Install these packages that AstroBox requires on Linux. These are because AstroBox's code is meant to run with Tauri, but since we aren't using that part of the app, ideally we would be able to remove more dependencies.
+Note on creating more patches in the future if you need to: don't use the Windows CMD! Use Linux or git bash. The diff uses utf-16 instead of utf-8 on Windows's PowerShell/CMD I think, which doesn't work with git.
+
+4. Install these packages that AstroBox requires on Linux. These are needed because AstroBox's code is meant to run with Tauri, but since we aren't using that part of the app, ideally we would be able to remove more dependencies. For now, these are needed to compile the rust code:
 ```bash
 sudo apt install libglib2.0-dev
 sudo apt install libgtk-3-dev
 sudo apt install libwebkit2gtk-4.1-dev
 ```
-5. If you have gone through all of the authentication setup, the watch is probably still connected to the Android phone. In that case, go to Settings, System, then press "Connect new phone". On this new screen (there should be a QR code), you must press "Pair" if it pops up while trying to connect to the computer. On Windows, after pressing pair, you usually have to allow the connection when the request comes up. It'll say something like "Pair Device? [Watch Name] would like to pair with this Windows device. Do you want to allow this?" and you have to press "Allow".
+5. If you have gone through all of the authentication setup, the watch is probably still connected to the Android phone. In that case, go to the watch's Settings, System, then press "Connect new phone". On this new screen (there should be a QR code), you must press "Pair" if it pops up while trying to connect to the computer/PI. If on linux, everything should work if you have the correct Auth key. On Windows, after pressing pair, you usually have to allow the connection when the request comes up. It'll say something like "Pair Device? [Watch Name] would like to pair with this Windows device. Do you want to allow this?" and you have to press "Allow".
 6. Compile and run the code
-
 ```bash
 cargo run -p mi_band_controller --manifest-path src-tauri/Cargo.toml
 ```
-
 7. Set up the linux service in `mi_band_controller.service`. This is required because it reconnects to the watch by shutting down after 30 seconds (the number of seconds is configurable in config.yml). It expects to be restarted externally. It isn't ideal, but restarting within the same proccess might be a bit tricky. For building the app to get an executable for the service, run:
 ```bash
 cargo build -p mi_band_controller --manifest-path src-tauri/Cargo.toml --release
