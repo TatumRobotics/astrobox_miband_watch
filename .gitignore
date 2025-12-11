@@ -1,27 +1,3 @@
-# Local
-.DS_Store
-*.local
-*.log*
-
-# Dist
-node_modules
-dist/
-
-# Profile
-.rspack-profile-*/
-
-# IDE
-.vscode/*
-!.vscode/tasks.json
-!.vscode/extensions.json
-.idea
-
-/scriptgen
-/target
-
-web
-
-__PRIV_CLONED
-src-tauri/modules/app_wasm/pkg/
-
-target/*
+/bin
+/obj
+/.vs

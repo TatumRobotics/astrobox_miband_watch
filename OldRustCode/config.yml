@@ -1,0 +1,528 @@
+# after the watch disconnects,
+# it waits this number of seconds before closing the program
+# and trying to connect again
+retry_interval_seconds: 15
+
+# Mi Band device configuration
+device:
+  name: Xiaomi Smart Band 10 8DCA
+  mac_address: 04:34:C3:A4:8D:CA
+  auth_key: 13b6840ba233108fd714cbae5f7a3346
+  sar_version: 2
+  # set this to something like 10000 ms to get enough time to pair it.
+  # hopefully that is a one time thing per watch.
+  # also, when the watch restarts, sometimes it needs a bit of time
+  # so a future improvement would be to have different delays depending on the situation
+  connection_delay_ms: 300
+
+# HTTP server configuration
+web_server:
+  port: 3000
+  vibration_route_name: /vibrate
+
+# there's a couple example patterns here
+# we should improve them and define specific ones for
+# phone calls, notifications, sms messages, etc.
+
+patterns:
+# note: from testing with Elane, we found that it's difficult for her to feel the vibrations,
+# so these strength=100 ones are possibly the only viable way for her to get important notifications.
+# but a per-user "pattern strength" in the database for the patterns would be the best option for this in the future.
+  strongest:
+  - on: true
+    duration: 3000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  - on: false
+    duration: 400
+  - on: true
+    duration: 2000
+    strength: 100
+  heartbeat:
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+
+
+  modified_heartbeat:
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+  - on: true
+    duration: 900
+    strength: 80
+  - on: false
+    duration: 100
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+  - on: true
+    duration: 100
+    strength: 100
+  - on: false
+    duration: 125
+  - on: true
+    duration: 80
+    strength: 75
+  - on: false
+    duration: 417
+
+
+  sos:
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 240
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 240
+    strength: 100
+  - on: false
+    duration: 240
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 80
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 80
+    strength: 100
+
+
+  sine_wave:
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 95
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 65
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+  - on: true
+    duration: 60
+    strength: 35
+  - on: false
+    duration: 30
+
+
+  fibonacci:
+  - on: true
+    duration: 30
+    strength: 50
+  - on: false
+    duration: 40
+  - on: true
+    duration: 30
+    strength: 58
+  - on: false
+    duration: 40
+  - on: true
+    duration: 60
+    strength: 67
+  - on: false
+    duration: 40
+  - on: true
+    duration: 90
+    strength: 75
+  - on: false
+    duration: 40
+  - on: true
+    duration: 150
+    strength: 83
+  - on: false
+    duration: 40
+  - on: true
+    duration: 240
+    strength: 92
+  - on: false
+    duration: 40
+  - on: true
+    duration: 390
+    strength: 100
+  - on: false
+    duration: 40
+
+  
+  spiral:
+  - on: true
+    duration: 50
+    strength: 60
+  - on: false
+    duration: 50
+  - on: true
+    duration: 81
+    strength: 70
+  - on: false
+    duration: 50
+  - on: true
+    duration: 131
+    strength: 80
+  - on: false
+    duration: 50
+  - on: true
+    duration: 212
+    strength: 90
+  - on: false
+    duration: 50
+  - on: true
+    duration: 343
+    strength: 100
+  - on: false
+    duration: 50
+
+
+  rhythm:
+  - on: true
+    duration: 40
+    strength: 75
+  - on: false
+    duration: 60
+  - on: true
+    duration: 60
+    strength: 77
+  - on: false
+    duration: 60
+  - on: true
+    duration: 100
+    strength: 82
+  - on: false
+    duration: 60
+  - on: true
+    duration: 140
+    strength: 86
+  - on: false
+    duration: 60
+  - on: true
+    duration: 220
+    strength: 95
+  - on: false
+    duration: 60
+  - on: true
+    duration: 260
+    strength: 100
+  - on: false
+    duration: 60
+
+
+  exponential_decay:
+  - on: true
+    duration: 300
+    strength: 100
+  - on: false
+    duration: 90
+  - on: true
+    duration: 180
+    strength: 88
+  - on: false
+    duration: 54
+  - on: true
+    duration: 108
+    strength: 81
+  - on: false
+    duration: 32
+  - on: true
+    duration: 65
+    strength: 76
+  - on: false
+    duration: 30
+  - on: true
+    duration: 39
+    strength: 74
+  - on: false
+    duration: 30
+
+
+  rock_beat:
+  - on: true
+    duration: 120
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 60
+    strength: 60
+  - on: false
+    duration: 80
+  - on: true
+    duration: 100
+    strength: 85
+  - on: false
+    duration: 80
+  - on: true
+    duration: 60
+    strength: 60
+  - on: false
+    duration: 80
+  - on: true
+    duration: 120
+    strength: 100
+  - on: false
+    duration: 80
+  - on: true
+    duration: 60
+    strength: 60
+  - on: false
+    duration: 80
+  - on: true
+    duration: 100
+    strength: 85
+  - on: false
+    duration: 80
+
+
+  waltz:
+  - on: true
+    duration: 150
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 100
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 150
+  - on: true
+    duration: 150
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 100
+  - on: true
+    duration: 80
+    strength: 50
+  - on: false
+    duration: 100
+  
+
+  jons_idea:
+  - on: true
+    duration: 80
+    strength: 25
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 100
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 25
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 100
+  - on: true
+    duration: 80
+    strength: 75
+  - on: true
+    duration: 80
+    strength: 50
+  - on: true
+    duration: 80
+    strength: 25
+  - on: false
+    duration: 200
+  - on: true
+    duration: 50
+    strength: 25
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 100
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 50
+    strength: 25
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 100
+  - on: true
+    duration: 50
+    strength: 75
+  - on: true
+    duration: 50
+    strength: 50
+  - on: true
+    duration: 100
+    strength: 40
+  - on: true
+    duration: 100
+    strength: 25
+  - on: true
+    duration: 100
+    strength: 15
+  - on: true
+    duration: 100
+    strength: 10
+  - on: true
+    duration: 100
+    strength: 5
+  - on: true
+    duration: 100
+    strength: 3

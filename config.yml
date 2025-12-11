@@ -1,29 +1,11 @@
-# after the watch disconnects,
-# it waits this number of seconds before closing the program
-# and trying to connect again
-retry_interval_seconds: 15
-
-# Mi Band device configuration
 device:
   name: Xiaomi Smart Band 10 8DCA
   mac_address: 04:34:C3:A4:8D:CA
   auth_key: 13b6840ba233108fd714cbae5f7a3346
-  sar_version: 2
-  # set this to something like 10000 ms to get enough time to pair it.
-  # hopefully that is a one time thing per watch.
-  # also, when the watch restarts, sometimes it needs a bit of time
-  # so a future improvement would be to have different delays depending on the situation
-  connection_delay_ms: 300
-
-# HTTP server configuration
-web_server:
-  port: 3000
-  vibration_route_name: /vibrate
 
 # there's a couple example patterns here
 # we should improve them and define specific ones for
 # phone calls, notifications, sms messages, etc.
-
 patterns:
 # note: from testing with Elane, we found that it's difficult for her to feel the vibrations,
 # so these strength=100 ones are possibly the only viable way for her to get important notifications.

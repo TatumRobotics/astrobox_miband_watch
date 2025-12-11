@@ -1,0 +1,519 @@
+message SystemMessage {
+
+    enum SystemID {
+        RESET = 0;
+        APPLY_NEW_BIND = 63;
+        NOTIFY_NEW_BIND = 12;
+        NOTIFY_APP_DISCONNECTED = 13;
+        APPLY_LOW_LATENCY = 67;
+        GET_DEVICE_STATUS = 1;
+        GET_DEVICE_INFO = 2;
+        SET_SYSTEM_TIME = 3;
+        FORCE_UPGRADE = 4;
+        PREPARE_OTA = 5;
+        REPORT_OTA_PROGRESS = 87;
+        SET_LANGUAGE = 6;
+        GET_HID_STATUS = 7;
+        SET_HID_STATUS = 8;
+        GET_LOCK_SCREEN = 9;
+        SET_LOCK_SCREEN = 21;
+        GET_NIGHT_MODE = 10;
+        SET_NIGHT_MODE = 11;
+        UNLOCK_WATCH = 16;
+        FIND_PHONE = 17;
+        FIND_WEAR = 18;
+        GET_AUTHORIZE_UNLOCK = 19;
+        SET_AUTHORIZE_UNLOCK = 20;
+        GET_QUIET_MODE = 22;
+        SET_QUIET_MODE = 23;
+        GET_WRIST_SCREEN = 24;
+        SET_WRIST_SCREEN = 25;
+        SET_WIDGET = 26;
+        SET_WIDGET_LIST = 27;
+        GET_WIDGET_LIST = 28;
+        GET_ORDERED_APP_LIST = 29;
+        SET_ORDERED_APP_LIST = 30;
+        GET_APP_LAYOUT = 31;
+        SET_APP_LAYOUT = 41;
+        SET_SHORTCUT_1 = 32;
+        SET_SHORTCUT_2 = 33;
+        SET_SHORTCUT_3 = 34;
+        GET_SHORTCUT_1 = 35;
+        GET_SHORTCUT_2 = 36;
+        GET_SHORTCUT_3 = 37;
+        GET_SUPPORT_SHORTCUT_LIST = 38;
+        GET_SPORT_OPTION = 39;
+        SET_SPORT_OPTION = 40;
+        ADD_OR_UPDATE_SMALL_HABIT = 48;
+        SYNC_SMALL_HABIT = 49;
+        DELETE_SMALL_HABIT = 50;
+        GET_WIDGET_GROUP_LIST = 51;
+        SET_WIDGET_GROUP_LIST = 52;
+        GET_SUPPORT_WIDGET_LIST = 53;
+        GET_WIFI_CAPABILITY = 54;
+        REQUEST_WIFI_CONFIG = 55;
+        ADD_WIFI_CONFIG = 56;
+        NOTIFY_WIFI_CONFIG_RESULT = 98;
+        SYNC_WIFI_CONFIG_LIST = 57;
+        GET_WIFI_CONFIG_LIST = 86;
+        ENABLE_WIFI_AP = 88;
+        DISABLE_WIFI_AP = 89;
+        GET_SYSTEM_SETTING = 14;
+        SET_SYSTEM_SETTING = 15;
+        REPORT_SYSTEM_SETTING = 42;
+        REQUEST_PHONE_SETTING = 43;
+        SYNC_PHONE_SETTING = 44;
+        MODIFY_PHONE_SETTING = 45;
+        LACK_PHONE_PERMISSION = 64;
+        GET_AOD_SETTING = 65;
+        SET_AOD_SETTING = 66;
+        GET_VIBRATOR_SETTING = 46;
+        SET_VIBRATOR_ITEM = 47;
+        ADD_VIBRATOR = 58;
+        TEST_VIBRATOR = 59;
+        UPDATE_VIBRATOR = 60;
+        REMOVE_VIBRATORS = 61;
+        GET_STORAGE_INFO = 62;
+        GET_WEAR_STATUS = 93;
+        GET_BASIC_STATUS = 78;
+        REPORT_BASIC_STATUS = 79;
+        REPORT_BATTERY_STATUS = 97;
+        GET_ALERT_STATUS = 90;
+        REPORT_ALERT_STATUS = 91;
+        REPORT_DATA = 80;
+        REPORT_DATA_RESULT = 81;
+        REQUEST_NETWORK_PROXY = 82;
+        SYNC_NETWORK_STATUS = 92;
+        GET_WIDGET_V3 = 83;
+        SET_WIDGET_V3 = 84;
+        GET_SUPPORT_WIDGET_V3 = 85;
+        START_USAGE_GUIDE = 94;
+        REPORT_USAGE_GUIDE_FEEDBACK = 95;
+        FINISH_USAGE_GUIDE = 96;
+    }
+
+    oneof payload {
+        DeviceStatus device_status = 2;
+        DeviceInfo device_info = 3;
+        SystemTime system_time = 4;
+        AuthorizeUnlock.List authorize_unlock_list = 21;
+        AuthorizeUnlock authorize_unlock = 22;
+        VibratorSetting vibrator_setting = 38;
+        VibratorItem Vibrator_item = 39;
+        Vibrator Vibrator = 40;
+        VibratorEffect vibrator_effect = 41;
+        Vibrator.Removal vibrator_removal = 42;
+        VibratorError vibrator_error = 43;
+        BasicStatus.Present present_basic_status = 48;
+        BasicStatus.Report report_basic_status = 49;
+        ReportData report_data = 50;
+        ReportData.Result report_data_result = 51;
+        BasicStatus.Wearing wear_status = 60;
+        DeviceStatus.Battery battery_status = 63;
+    }
+}
+
+message ReportData {
+
+    enum Type {
+        DEVICE_LOG = 1;
+        STATISTICS = 2;
+        DUMP_LOG = 3;
+    }
+
+    enum Status {
+        SUCCESS = 0;
+        NO_DATA = 1;
+        URL_DIRECT = 2;
+        BUSY = 3;
+        FAIL = 10;
+    }
+
+    message Result {
+        required Type type = 1;
+        required Status status = 2;
+    }
+
+    required Type type = 1;
+    optional string id = 2;
+}
+
+message DeviceStatus {
+
+    message Battery {
+
+        enum ChargeStatus {
+            UNKNOWN = 0;
+            CHARGING = 1;
+            NOT_CHARGING = 2;
+            FULL = 3;
+        }
+
+        message ChargeInfo {
+            required uint32 state = 1;
+            optional uint32 timestamp = 2;
+        }
+
+        required uint32 capacity = 1;
+        optional ChargeStatus charge_status = 2;
+        optional ChargeInfo charge_info = 3;
+    }
+
+    required Battery battery = 1;
+}
+
+message DeviceInfo {
+    required string serial_number = 1;
+    required string firmware_version = 2;
+    required string imei = 3;
+    required string model = 4;
+    required string product_device = 5;
+}
+
+message SystemTime {
+    required Date date = 1;
+    required Time time = 2;
+    optional Timezone time_zone = 3;
+    optional bool is_12_hours = 4;
+}
+
+message AuthorizeUnlock {
+
+    enum Device {
+        UNKNOWN = 0;
+        LAPTOP = 1;
+        PHONE = 2;
+    }
+
+    message List {
+        repeated AuthorizeUnlock list = 1;
+    }
+
+    required Device device = 1;
+    required bool enable = 2;
+}
+
+
+
+message VibratorSetting {
+    repeated VibratorItem items = 1;
+    required uint32 max_number = 2;
+    repeated Vibrator vibrators = 3;
+    optional uint32 version = 4;
+}
+
+message Vibrator {
+
+    enum Type {
+        NONE = 0;
+        CALL = 1;
+        EVENT = 2;
+        CLOCK = 3;
+        NOTIFICATION = 4;
+        SEDENTARY = 5;
+        MESSAGE = 6;
+        GOAL = 7;
+        CALENDAR = 8;
+    }
+
+    message Removal {
+        repeated uint32 ids = 1;
+    }
+
+    required uint32 id = 1;
+    required string name = 2;
+    repeated VibratorEffect.Segment segments = 3;
+    optional Type type = 4;
+}
+
+message VibratorItem {
+    required Vibrator.Type type = 1;
+    required uint32 id = 2;
+    optional uint32 supported_builtin_ids = 3;
+}
+
+message VibratorEffect {
+
+    message Segment {
+        required bool on = 1;
+        required uint32 duration = 2;
+        optional uint32 strength = 3;
+    }
+
+    repeated Segment segments = 1;
+    optional VibratorItem item = 2;
+}
+
+message VibratorError {
+
+    enum Code {
+        OK = 0;
+        NUMBER_LIMIT = 1;
+        ID_NOT_EXIST = 2;
+    }
+
+    required Code code = 1;
+}
+
+message Timezone {
+    required int32 offset = 1;
+    optional int32 dst_saving = 2;
+    required string id = 3;
+    required string id_spec = 4;
+}
+
+message Date {
+    required uint32 year = 1;
+    required uint32 month = 2;
+    required uint32 day = 3;
+}
+
+message Time {
+    required uint32 hour = 1;
+    required uint32 minuter = 2;
+    optional uint32 second = 3;
+    optional uint32 millisecond = 4;
+}
+
+message BasicStatus {
+
+    enum Charging {
+        START = 1;
+        QUIT = 2;
+        FINISH = 3;
+    }
+
+    enum Wearing {
+        ON = 1;
+        OFF = 2;
+    }
+
+    enum Sleeping {
+        IN = 1;
+        OUT = 2;
+    }
+
+    enum Warning {
+        HEART_RATE_HIGH = 1;
+        HEART_RATE_LOW = 2;
+        ACTIVE_HEART_RATE_HIGH = 3;
+        ACTIVE_HEART_RATE_LOW = 4;
+    }
+
+    message Sport {
+        required SportType sport_type = 1;
+        optional SportState sport_state = 2;
+    }
+
+    message Present {
+        required bool is_charging = 1;
+        optional uint32 battery = 2;
+        required bool is_wearing = 3;
+        required bool is_sleeping = 4;
+        required Sport sport = 5;
+    }
+
+    message Report {
+        optional Charging charging = 1;
+        optional Wearing wearing = 2;
+        optional Sleeping sleeping = 3;
+        optional Warning waring = 4;
+        optional Sport sport = 5;
+    }
+}
+
+enum SportType {
+    NONE = 0;
+    RUN_OUTDOOR = 1;
+    WALK_OUTDOOR = 2;
+    RUN_INDOOR = 3;
+    CLIMBING = 4;
+    CROSS_COUNTRY = 5;
+    RIDE_OUTDOOR = 6;
+    RIDE_INDOOR = 7;
+    FREE_TRAINING = 8;
+    SWIM_INDOOR = 9;
+    SWIM_OUTDOOR = 10;
+    ELLIPTICAL_MACHINE = 11;
+    YOGA = 12;
+    ROWING_MACHINE = 13;
+    ROPE_SKIPPING = 14;
+    HIKING_OUTDOOR = 15;
+    HIGH_INTERVAL_TRAINING = 16;
+    TRIATHLON = 17;
+    GENERAL_BALL = 18;
+    BASKETBALL_S = 19;
+    GOLF_S = 20;
+    SKIING = 21;
+    OUTDOOR_WALK_CATEGORY = 22;
+    OUTDOOR_NON_WALK_CATEGORY = 23;
+    ROCK_CLIMBING_S = 24;
+    DIVING = 25;
+    SAILBOAT = 100;
+    PADDLE_BOARD = 101;
+    WATER_POLO = 102;
+    AQUATIC_SPORT = 103;
+    SURFING = 104;
+    CANOEING = 105;
+    KAYAK_RAFTING = 106;
+    ROWING = 107;
+    MOTORBOAT = 108;
+    WEB_SWIMMING = 109;
+    DRIVING = 110;
+    FANCY_SWIMMING = 111;
+    SNORKELING = 112;
+    KITE_SURFING = 113;
+    INDOOR_SURFING = 114;
+    DRAGON_BOAT = 115;
+    FREE_DIVING = 116;
+    SCUBA_DIVING = 117;
+    INSTRUMENT_DIVING = 118;
+    ROCK_CLIMBING = 200;
+    SKATE = 201;
+    ROLLER_SKATING = 202;
+    PARKOUR = 203;
+    ATV = 204;
+    PARAGLIDER = 205;
+    BICYCLE_MOTO = 206;
+    HEEL_AND_TOE = 207;
+    CLIMBING_MACHINE = 300;
+    CLIMB_STAIRS = 301;
+    STEPPER = 302;
+    CORE_TRAINING = 303;
+    FLEXIBILITY_TRAINING = 304;
+    PILATES = 305;
+    GYMNASTICS = 306;
+    STRETCH = 307;
+    STRENGTH_TRAINING = 308;
+    CROSS_FIT = 309;
+    AEROBICS = 310;
+    PHYSICAL_TRAINING = 311;
+    WALL_BALL = 312;
+    DUMBBELL_TRAINING = 313;
+    BARBELL_TRAINING = 314;
+    WEIGHTLIFTING = 315;
+    DEADLIFT = 316;
+    BOBBY_JUMP = 317;
+    SIT_UPS = 318;
+    FUNCTIONAL_TRAINING = 319;
+    UPPER_LIMB_TRAINING = 320;
+    LOWER_LIMB_TRAINING = 321;
+    WAIST_TRAINING = 322;
+    BACK_TRAINING = 323;
+    SPINNING = 324;
+    WALKING_MACHINE = 325;
+    STEP_TRAINING = 326;
+    SINGLE_BAR = 327;
+    PARALLEL_BARS = 328;
+    GROUP_CALLISTHENICS = 329;
+    STRIKE = 330;
+    BATTLE_ROPE = 331;
+    MIXED_AEROBIC = 332;
+    WALK_INDOOR = 333;
+    GYM = 399;
+    SQUARE_DANCE = 400;
+    BELLY_DANCE = 401;
+    BALLET = 402;
+    STREET_DANCE = 403;
+    ZUMBA = 404;
+    NATIONAL_DANCE = 405;
+    JAZZ = 406;
+    LATIN_DANCE = 407;
+    HIP_HOP_DANCE = 408;
+    POLE_DANCE = 409;
+    BREAKDANCING = 410;
+    SOCIAL_DANCING = 411;
+    MODERN_DANCING = 412;
+    DANCE = 499;
+    BOXING = 500;
+    WRESTLING = 501;
+    MARTIAL_ARTS = 502;
+    TAICHI = 503;
+    MUAY_THAI = 504;
+    JUDO = 505;
+    TAEKWONDO = 506;
+    KARATE = 507;
+    FREE_SPARRING = 508;
+    SWORDSMANSHIP = 509;
+    FENCING = 510;
+    JUJITSU = 511;
+    FOOTBALL = 600;
+    BASKETBALL = 601;
+    VOLLEYBALL = 602;
+    BASEBALL = 603;
+    SOFTBALL = 604;
+    RUGBY = 605;
+    HOCKEY = 606;
+    PINGPONG = 607;
+    BADMINTON = 608;
+    TENNIS = 609;
+    CRICKET = 610;
+    HANDBALL = 611;
+    BOWLING = 612;
+    SQUASH = 613;
+    BILLIARDS = 614;
+    SHUTTLECOCK = 615;
+    BEACH_FOOTBALL = 616;
+    BEACH_VOLLEYBALL = 617;
+    SEPAK_TAKRAW = 618;
+    GOLF = 619;
+    FOOSBALL = 620;
+    INDOOR_FOOTBALL = 621;
+    SANDBAGS_BALL = 622;
+    BOCCI = 623;
+    HIHI_BALL = 624;
+    GATEBALL = 625;
+    DODGEBALL = 626;
+    SHUFFLE_BALL = 627;
+    OUTDOOR_SKATING = 700;
+    CURLING = 701;
+    SNOW_SPORTS = 702;
+    SNOWMOBILE = 703;
+    PUCK = 704;
+    SNOW_CAR = 705;
+    SLED = 706;
+    INDOOR__SKATING = 707;
+    SNOWBOARDING = 708;
+    DOUBLE_BOARD_SKIING = 709;
+    CROSS_COUNTRY_SKIING = 710;
+    ARCHERY = 800;
+    DARTS = 801;
+    HORSE_RIDING = 802;
+    TUG_OF_WAR = 803;
+    HULA_HOOP = 804;
+    FLY_KITE = 805;
+    FISHING = 806;
+    FRISBEE = 807;
+    SHUTTLECOCK_KICKING = 808;
+    SWING = 809;
+    MOTION_SENSING_GAME = 810;
+    ELECTRONIC_SPORTS = 811;
+    NINTENDO_JUSTDANCE = 812;
+    CHESS = 900;
+    DRAUGHTS = 901;
+    WEIQI = 902;
+    BRIDGE = 903;
+    BOARD_GAMES = 904;
+    INDOOR_ROCK_CLIMBING = 1000;
+    OUTDOOR_ROCK_CLIMBING = 1001;
+    EQUESTTRIAN = 10000;
+    TRACK_AND_FIELD = 10001;
+    RACING_CAR = 10002;
+}
+
+enum SportTargetType {
+    TARGET_DURATION = 1;
+    TARGET_CALORIE = 2;
+    TARGET_DISTANCE = 3;
+    TARGET_PACE = 4;
+    TARGET_STEP_FREQUENCY = 5;
+    TARGET_COUNT = 6;
+    TARGET_HEARTRATE = 7;
+}
+
+enum SportState {
+    SPORT_START = 0;
+    SPORT_PAUSE = 1;
+    SPORT_RESUME = 2;
+    SPORT_STOP = 3;
+}

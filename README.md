@@ -1,18 +1,19 @@
 # Mi Band 10 Controller for Notifications on the Tatum1 Robot
+A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP on a Raspberry Pi.
+This program connects to a Mi Band 10, authenticates, and can send vibration patterns or fetch the device's battery/sensor data.
+It's in C#, but was ported from the Rust [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG).
+They documented the Xiaomi protocol and provide a library to connect/authenticate/communicate with the watch.
 
-A standalone application for controlling Xiaomi Mi Band devices via Bluetooth SPP on a Raspberry Pi. This program connects to a Mi Band 10, authenticates, and exposes an HTTP API for triggering vibration patterns. It uses code from and is based on the [AstroBox repo](https://github.com/AstralSightStudios/AstroBox-NG). They documented the Xiaomi protocol and provide the library that this program uses to connect/authenticate/communicate with the watch.
-
-The code uses the following AstroBox modules developed by AstralSight Studios under the GNU Affero General Public License at the time of writing:
+The code was ported from the following AstroBox modules developed by AstralSight Studios under the GNU Affero General Public License at the time of writing:
 - The core (authentication and connection) - [core](https://github.com/AstralSightStudios/AstroBox-NG-Module-Core)
-- The protocol - [pb](https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb)
+- The Google ProtoBuf protocol files - [pb](https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb)
 - Bluetooth - [btclassic-spp](https://github.com/AstralSightStudios/AstroBox-NG-Plugin-BtClassicSpp)
 
-## What does the code do?
-
-1. It scans for and connects to the Mi Band with Bluetooth
-2. Authenticates using a token from the Mi Fitness app
-3. Has a server with endpoints for triggering custom vibration patterns
-4. Attempts reconnection every 30 seconds on disconnect
+## The C# code depends on a few NuGet packages:
+- [Google ProtoBuf](https://protobuf.dev/)
+- Microsoft's Logging
+- Desktop Bus (DBus) for bluetooth connection through BlueZ on Linux
+- YamlDotNet to parse the config file
 
 ## Getting the authentication token
 
@@ -29,6 +30,7 @@ The code uses the following AstroBox modules developed by AstralSight Studios un
 7. Copy XiaomiFit.main.log from the phone to your computer
 8. Open the file in a text editor and search for `"token":`
 9. Copy the token value (it should look something like: `13b6840ba233108fd714cbae5f7a3346`)
+10. The watch is probably still connected to the Android phone. In that case, disconnect the watch from the Android phone's bluetooth settings. Then, go to the watch's Settings -> System -> "Connect new phone". On this new screen (there should be a QR code, don't scan it), you must press "Pair" if it pops up while trying to connect to the PI.
 
 ## Configuring the code
 
@@ -42,6 +44,7 @@ device:
   ```
 
 Adding custom vibration patterns can be done by changing the patterns field in the config file. Here's an example one with two quick pulses.
+The durations are in milliseconds and the strengths are from 0 to 100.
 
 ```yaml
 patterns:
@@ -56,77 +59,77 @@ patterns:
     strength: 100
 ```
 
-The port and web server route name can be changed in the config as well!
-
-```yaml
-web_server:
-  port: 3000
-  vibration_route_name: "/vibrate"
-```
-
-## Building and Running
-
-### Initial Setup
-
-1. Install: [Rust](https://rust-lang.org/tools/install/), Git, and Python
-2. From the main folder, clone AstroBox's code:
+## Building and using the app
+Run this to build it for the pi:
 ```bash
-python setup.py
+dotnet publish -c Release -r linux-arm64
 ```
-3. Run this command in the src-tauri/modules/btclassic-spp folder to make the bluetooth module public. This must be done because AstroBox intended it for use in a private app, but it works great for our use case. The pairing proccess also needs to "trust" the watch on linux, so the second patch fixes that. The "trust" makes the watch not show the "pair" prompt when bluetooth is disconnected.
+The executable will be `\bin\Release\net8.0\linux-arm64\publish\XiaomiAstroBoxCSharp`.
+Make sure the config.yml file is in the same directory as the executable when you run it, or specify its file location as the first command line argument.
+To test the app, make sure you have the bluetooth group on Linux:
 ```bash
-git apply ../../../patches/btclassic-spp-public-api.patch
-git apply ../../../patches/btclassic-spp-linux-pairing-trust.patch
+sudo usermod -aG bluetooth your_user
 ```
-Note on applying patches: if you clone the repo on Windows, apply the patches on Windows too (because of the different line endings). That requires running setup.py on Windows too.
-
-Note on creating more patches in the future if you need to: don't use the Windows CMD! Use Linux or git bash. The diff uses utf-16 instead of utf-8 on Windows's PowerShell/CMD I think, which doesn't work with git.
-
-4. Install these packages that AstroBox requires on Linux. These are needed because AstroBox's code is meant to run with Tauri, but since we aren't using that part of the app, ideally we would be able to remove more dependencies. For now, these are needed to compile the rust code:
+then restart the Pi.
+In the bluetoothctl, scan for the watch (make sure you see the QR code. If you don't, go into Settings -> System -> Connect new phone).
+To do that, first run the `bluetoothctl` command and enter in these into the [bluetooth]:
 ```bash
-sudo apt install libglib2.0-dev
-sudo apt install libgtk-3-dev
-sudo apt install libwebkit2gtk-4.1-dev
+power on
+scan on
 ```
-5. If you have gone through all of the authentication setup, the watch is probably still connected to the Android phone. In that case, go to the watch's Settings, System, then press "Connect new phone". On this new screen (there should be a QR code), you must press "Pair" if it pops up while trying to connect to the computer/PI. If on linux, everything should work if you have the correct Auth key. On Windows, after pressing pair, you usually have to allow the connection when the request comes up. It'll say something like "Pair Device? [Watch Name] would like to pair with this Windows device. Do you want to allow this?" and you have to press "Allow".
-6. Compile and run the code
+Then, wait until you see the Xiaomi watch. It can take a minute! It should print the MAC address and the full name of the watch which should match the ones in your config!
+You safe to run `exit` to exit out of the bluetooth command line now.
+Run the C# app (but make sure it's an executable):
 ```bash
-cargo run -p mi_band_controller --manifest-path src-tauri/Cargo.toml
+chmod +x ./XiaomiAstroBoxCSharp
 ```
-7. Set up the linux service in `mi_band_controller.service`. This is required because it reconnects to the watch by shutting down after 30 seconds (the number of seconds is configurable in config.yml). It expects to be restarted externally. It isn't ideal, but restarting within the same proccess might be a bit tricky. For building the app to get an executable for the service, run:
+Long term, you need to setup the Linux service to keep it going on restart and on shutdown (such as if the watch disconnects or the user walks too far away from the Pi):
 ```bash
-cargo build -p mi_band_controller --manifest-path src-tauri/Cargo.toml --release
-cp config.yml src-tauri/target/release/config.yml
+sudo nano /etc/systemd/system/mi_band_controller.service
 ```
-(it took 22 minutes to compile that on a pi! we really should get rid of that Tauri dependency to compile it faster)
-
-## The Code
-
-All of the Rust code can be found in the `src-tauri/modules/mi_band_controller/src` folder.
-
-### device.rs
-- Bluetooth SPP connection using the `btclassic-spp` plugin
-- Authenticates devices with AstroBox's code `corelib`
-- Sends packets to the Mi Band
-
-### main.rs
-- Initializes logging and loads configuration
-- Connects to the device and authenticates
-- Starts HTTP server and connection monitor
-- Shuts down program on disconnect
-
-### server.rs
-- POST endpoint `/vibrate` accepts JSON: `{"pattern": "heartbeat"}` or any of the other patterns defined in the config
-
-### config.rs
-- Parses config YML file to get the device info, vibration patterns, and web server info
-
-## API Usage
-
-Start the controller, then trigger vibrations via HTTP:
-
+Then paste in the `mi_band_controller.service` in this repo.
 ```bash
-curl -X POST http://localhost:3000/vibrate \
-  -H "Content-Type: application/json" \
-  -d '{"pattern": "heartbeat"}'
+sudo systemctl enable mi_band_controller
+sudo systemctl start mi_band_controller
 ```
+But right now the only way to trigger it is by command line and typing in commands.
+You can enter in the following commands:
+- "battery" to fetch the battery %
+- "wearing" to fetch if the user is wearing the watch
+- Any of the names of the patterns listed in config.yml
+
+
+## Bluetooth Communication
+- Uses the RPI's Bluetooth Classic through BlueZ
+    - It know the MAC address from the config
+	- It pairs with the device
+	- Trusts it so it doesn't have to pair again
+- For networking, it uses both the Transport layer (L1) and Application Layer (L2)
+	- Transport layer
+	- Xiaomi has a header of 0xA5A5 for syncing
+	- Has sequence numbers to track packets (first packet is seq #1, second is #2, etc.)
+	- Acknowledges (ACK) packets by sending a message
+	- Error detection
+- Application Layer
+	- Uses AES-128-CTR encryption (look at the L2Cipher class in the CryptographyHelper.cs file)
+	- Has "WearPacket" data
+- The data flow:
+	1. Google's Protobuf data structures
+	2. Application (L2) layer encryption
+	3. Transport (L1) layer sequencing, framing, gaurenteeing of packets
+	4. Bluetooth SPP raw bytes
+- The authentication code flow:
+    1. L1 handshake to communicate config like packet size, timeouts, etc.
+	2. Sends encryption challenge of 16 random bytes, which Xiaomi expects for security 
+	3. Sends auth key found earlier from the official Mi Fitness app
+	4. Creates a cipher for the L2 layer so that it can send encypted WearPackets going forward
+- Packets:
+	- Uses Google's Protobuf to create packets and define their structure
+	- Uses AstroBox's reverse engineered .proto files to know that packet structure
+
+
+## Future things to do
+- Integrate it with the rest of trManager and the rest of the code
+- Improve the patterns and define ones for calling, messaging, etc.
+- Set the system time on the watch to the actual time with the correct time zone
+- Improve reconnection and make it reconnect within the same process. Right now, it has to shut down before it can reconnect. The Linux service is meant to restart it after a delay.

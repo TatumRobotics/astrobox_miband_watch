@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<!--<RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
+		<RuntimeIdentifier>linux-arm64</RuntimeIdentifier>
+		<OutputType>Exe</OutputType>
+		<AssemblyName>XiaomiAstroBoxCSharp</AssemblyName>
+
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>true</PublishSingleFile>
+		<IncludeNativeLibrariesForSelfContained>true</IncludeNativeLibrariesForSelfContained>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!--<RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
+		<RuntimeIdentifier>linux-arm64</RuntimeIdentifier>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
+		
+		<PackageReference Include="Tmds.DBus" Version="0.18.0" />
+		
+		<PackageReference Include="YamlDotNet" Version="16.3.0" />
+		
+		<PackageReference Include="Google.Protobuf" Version="3.25.1" />
+		<PackageReference Include="Grpc.Tools" Version="2.60.0" PrivateAssets="All" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Protobuf Include="Protocol\account.proto" GrpcServices="None" ProtoRoot="." />
+		<Protobuf Include="Protocol\watch_system.proto" GrpcServices="None" ProtoRoot="." />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="config.yml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+</Project>

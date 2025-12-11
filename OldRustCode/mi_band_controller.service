@@ -1,0 +1,19 @@
+[Unit]
+Description=Mi Band Controller
+After=bluetooth.target network.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=tatum
+WorkingDirectory=/home/tatum/astrobox_miband_watch/src-tauri/target/release
+ExecStart=/home/tatum/astrobox_miband_watch/target/release/mi_band_controller
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+SupplementaryGroups=bluetooth
+StandardOutput=append:/home/tatum/astrobox_miband_watch/logs/miband.log
+StandardError=append:/home/tatum/astrobox_miband_watch/logs/miband-error.log
+
+[Install]
+WantedBy=multi-user.target

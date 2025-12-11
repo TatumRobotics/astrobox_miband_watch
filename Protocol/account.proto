@@ -1,0 +1,299 @@
+syntax = "proto2";
+
+package Protocol;
+
+import "Protocol/watch_system.proto";
+
+enum VerifyMode {
+    SERVER_PSK = 1;
+    APP_LOCAL = 2;
+}
+
+enum OOBMode {
+    NO_OOB = 0;
+    NUMERIC_COMPARISON = 1;
+    DYNAMIC_CODE = 2;
+    BUTTON_CONFIRM = 3;
+}
+
+message WearPacket {
+    enum Type {
+        OTHER = 0;
+        ACCOUNT = 1;
+        SYSTEM = 2;
+        WATCH_FACE = 4;
+        NFC = 5;
+        NOTIFICATION = 7;
+        FITNESS = 8;
+        LPA = 9;
+        WEATHER = 10;
+        STOCK = 11;
+        CALENDAR = 12;
+        FACTORY = 13;
+        AIVS = 14;
+        MARKET = 15;
+        GNSS = 16;
+        CLOCK = 17;
+        MEDIA = 18;
+        ALEXA = 19;
+        THIRDPARTY_APP = 20;
+        CONTACT = 21;
+        MASS = 22;
+        INTERCONNECTION = 23;
+    }
+
+    required Type type = 1;
+    required uint32 id = 2;
+    
+    oneof payload {
+        Account account = 3;
+        SystemMessage system = 4;
+    }
+}
+
+message Account {
+
+    enum AccountID {
+        BIND_STATUS = 0;
+        BIND_START = 1;
+        BIND_RESULT = 2;
+        LOGIN_STATUS = 3;
+        LOGIN_START = 4;
+        ACCOUNT_VERIFY = 5;
+        BOND_APPLY = 16;
+        BIND_START_V2 = 17;
+        BIND_VERIFY = 18;
+        BIND_CONFIRM = 19;
+        BIND_RESULT_V2 = 25;
+        AUTH_VERIFY = 26;
+        AUTH_CONFIRM = 27;
+        APPLY_DEVICE_PASSTOKEN = 28;
+        REPLY_DEVICE_PASSTOKEN = 29;
+        NOTIFY_LOGIN_STATUS_CHANGED = 30;
+    }
+
+    enum ErrorCode {
+        NO_ERROR = 0;
+        HAVE_BOUND = 1;
+        INFO_MISSING = 2;
+        INVALID_PARAM = 3;
+        NO_BOUND = 4;
+        SERVER_ERROR = 5;
+        CANCEL = 6;
+        VERIFY_ERROR = 7;
+        STATE_NOT_MATCH = 8;
+        USER_CHANGED = 9;
+        CONNECTION_REACH_LIMIT = 10;
+        UNKNOWN = 100;
+    }
+
+    oneof payload {
+        bool bind_status = 1;
+        string bind_key = 2;
+        Account.ErrorCode error_code = 3;
+        BindInfo bind_info = 4;
+        BindResult bind_result = 5;
+        bool login_status = 6;
+        string verify_key = 7;
+        bool verify_result = 8;
+        BondApply bond_apply = 9;
+        BondReply bond_reply = 10;
+        BindStartV2 bind_start_v2 = 11;
+        BindInfoV2 bind_info_v2 = 12;
+        BindPsk.ServerVerify psk_server_verify = 13;
+        BindPsk.DeviceVerify psk_device_verify = 14;
+        BindPsk.AppConfirm psk_app_confirm = 15;
+        BindPsk.DeviceConfirm psk_device_confirm = 16;
+        BindLocal.AppVerify local_app_verify = 17;
+        BindLocal.DeviceVerify local_device_verify = 18;
+        BindLocal.AppConfirm local_app_confirm = 19;
+        BindLocal.DeviceConfirm local_device_confirm = 20;
+        BindResultV2 bind_result_v2 = 29;
+        Auth.AppVerify auth_app_verify = 30;
+        Auth.DeviceVerify auth_device_verify = 31;
+        Auth.AppConfirm auth_app_confirm = 32;
+        Auth.DeviceConfirm auth_device_confirm = 33;
+        Login.PassTokenApply pass_token_apply = 34;
+        Login.PassTokenReply pass_token_reply = 35;
+        Login.StatusChange status_change = 36;
+    }
+
+}
+
+message BindInfo {
+    required string bind_key = 1;
+    required string did = 2;
+    required string model = 3;
+    required string mac = 4;
+    required string sign = 5;
+    required string serial_number = 6;
+}
+
+message BindResult {
+    required string user_id = 1;
+    required string token = 2;
+    optional CompanionDevice companion_device = 3;
+}
+
+message CompanionDevice {
+
+    enum DeviceType {
+        ANDROID = 0;
+        IOS = 1;
+        VELA = 2;
+        OTHER = 15;
+    }
+
+    required DeviceType device_type = 1;
+    optional float system_version = 2;
+    required string device_name = 3;
+    optional uint32 app_capability = 4;
+    optional string region = 5;
+    optional string server_prefix = 6;
+
+}
+
+message BondApply {
+    required bytes hash_user_id = 1;
+}
+
+message BondReply {
+
+    enum Status {
+        NOT_SUPPORT = 1;
+        BOND_SUCCESS = 2;
+        BOND_FAIL = 3;
+    }
+
+    required Status status = 1;
+
+}
+
+message BindStartV2 {
+    required bool check_dynamic_code = 1;
+    required bytes hash_user_id = 2;
+    required string device_name = 3;
+    optional uint32 pid = 4;
+}
+
+message BindInfoV2 {
+    required VerifyMode verify_mode = 1;
+    required string serial_number = 2;
+    required string mac = 3;
+    required string model = 4;
+    required OOBMode oob_mode = 5;
+    required bytes device_random = 6;
+    required string did = 7;
+}
+
+message BindPsk {
+
+    message ServerVerify {
+        required bytes server_public_key = 1;
+        required bytes server_sign = 2;
+        required bytes server_random = 3;
+    }
+
+    message DeviceVerify {
+        required bytes device_public_key = 1;
+        required bytes device_sign = 2;
+    }
+
+    message AppConfirm {
+        required bytes app_random = 1;
+        required bytes app_sign = 2;
+        required bytes bind_key = 3;
+    }
+
+    message DeviceConfirm {
+        required bytes device_random = 1;
+        required bytes device_sign = 2;
+        required bytes bind_sign = 3;
+    }
+
+    message ResultInfo {
+        required string user_id = 1;
+        optional CompanionDevice companion_device = 2;
+    }
+
+}
+
+message BindLocal {
+
+    message AppVerify {
+        required string app_device_id = 1;
+        required bytes app_public_key = 2;
+    }
+
+    message DeviceVerify {
+        required bytes device_public_key = 1;
+        required bytes device_random = 2;
+        required bytes device_sign = 3;
+    }
+
+    message AppConfirm {
+        required bytes app_random = 1;
+        required bytes app_sign = 2;
+    }
+
+    message DeviceConfirm {
+        required bool confirm_result = 1;
+    }
+
+    message ResultInfo {
+        required string user_id = 1;
+        required CompanionDevice companion_device = 2;
+    }
+
+}
+
+message BindResultV2 {
+    required bytes encrypt_result_info = 1;
+}
+
+message Auth {
+
+    message AppVerify {
+        required bytes app_random = 1;
+        optional string app_device_id = 2;
+        optional bool check_dynamic_code = 3;
+    }
+
+    message DeviceVerify {
+        required bytes device_random = 1;
+        required bytes device_sign = 2;
+    }
+
+    message AppConfirm {
+        required bytes app_sign = 1;
+        required bytes encrypt_companion_device = 2;
+    }
+
+    message DeviceConfirm {
+        required bool confirm_result = 1;
+        optional uint32 device_capability = 2;
+        optional uint32 device_capability_2 = 3;
+    }
+
+}
+
+message Login {
+
+    message PassTokenApply {
+        required uint64 transaction_id = 1;
+        required string ua = 2;
+        required string nonce = 3;
+        required string sign = 4;
+    }
+
+    message PassTokenReply {
+        required uint64 transaction_id = 1;
+        required string login_data = 2;
+    }
+
+    message StatusChange {
+        required uint32 status = 1;
+    }
+
+}
+
