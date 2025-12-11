@@ -78,7 +78,7 @@ power on
 scan on
 ```
 Then, wait until you see the Xiaomi watch. It can take a minute! It should print the MAC address and the full name of the watch which should match the ones in your config!
-You safe to run `exit` to exit out of the bluetooth command line now.
+Run the `exit` command to exit out of the bluetooth command line.
 Run the C# app (but make sure it's an executable):
 ```bash
 chmod +x ./XiaomiAstroBoxCSharp
@@ -87,12 +87,12 @@ Long term, you need to setup the Linux service to keep it going on restart and o
 ```bash
 sudo nano /etc/systemd/system/mi_band_controller.service
 ```
-Then paste in the `mi_band_controller.service` in this repo.
+Then paste in the `mi_band_controller.service` in this repo and run these commands:
 ```bash
 sudo systemctl enable mi_band_controller
 sudo systemctl start mi_band_controller
 ```
-But right now the only way to trigger it is by command line and typing in commands.
+But right now the only way to trigger vibrations is by command line and typing in commands manually.
 You can enter in the following commands:
 - "battery" to fetch the battery %
 - "wearing" to fetch if the user is wearing the watch
@@ -101,11 +101,11 @@ You can enter in the following commands:
 
 ## Bluetooth Communication
 - Uses the RPI's Bluetooth Classic through BlueZ
-    - It know the MAC address from the config
+  - It knows the MAC address from the config
 	- It pairs with the device
 	- Trusts it so it doesn't have to pair again
-- For networking, it uses both the Transport layer (L1) and Application Layer (L2)
-	- Transport layer
+- For networking, it uses implements both the Transport layer (L1) and Application Layer (L2) parts of the traditional networking layers
+- Transport layer
 	- Xiaomi has a header of 0xA5A5 for syncing
 	- Has sequence numbers to track packets (first packet is seq #1, second is #2, etc.)
 	- Acknowledges (ACK) packets by sending a message
@@ -130,6 +130,7 @@ You can enter in the following commands:
 
 ## Future things to do
 - Integrate it with the rest of trManager and the rest of the code
-- Improve the patterns and define ones for calling, messaging, etc.
+- Improve the vibration patterns and define ones for calling, messaging, etc.
+- Implement different vibration strengths per user since some users have a harder time feeling the vibrations than others
 - Set the system time on the watch to the actual time with the correct time zone
 - Improve reconnection and make it reconnect within the same process. Right now, it has to shut down before it can reconnect. The Linux service is meant to restart it after a delay.
