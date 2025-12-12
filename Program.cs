@@ -74,27 +74,39 @@ class Program()
 
     async static Task Main(string[] args)
     {
+        // Config stores device info and vibration patterns
+        Console.WriteLine("Loading configuration...");
+        var filePath = args.Length > 0 ? args[0] : "config.yml";
+        var doesFileExist = System.IO.File.Exists(filePath);
+        if (!doesFileExist)
+        {
+            Console.WriteLine($"Configuration file not found at {filePath}");
+            return;
+        }
+        var config = Config.Load(filePath);
+        Console.WriteLine("Loaded configuration");
+
+        var defaultLevel = LoggingConfig.ParseLoggingLevel(config.Logging.Default);
+        var filters = config.Logging.Filters;
+
+        var rootNamespace = typeof(Program).Namespace;
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
             builder
                 .AddConsole()
-                .SetMinimumLevel(LogLevel.Debug)
-                .AddFilter("XiaomiAstroBoxCSharp.Device.XiaomiBand10", LogLevel.Warning)
-                .AddFilter("XiaomiAstroBoxCSharp.Protocol.PacketProcessor", LogLevel.Warning)
-                .AddFilter("XiaomiAstroBoxCSharp.Authentication.AuthenticationHandler", LogLevel.Warning)
-                .AddFilter("XiaomiAstroBoxCSharp.Bluetooth.BluetoothSppClient", LogLevel.Warning)
-                .AddFilter("Program", LogLevel.Information);
+                .SetMinimumLevel(defaultLevel);
+            
+            foreach (var filter in filters)
+            {
+                var level = LoggingConfig.ParseLoggingLevel(filter.Value);
+                builder.AddFilter($"{rootNamespace}.{filter.Key}", level);
+            }
         });
 
         logger = loggerFactory.CreateLogger<Program>();
 
         try
         {
-            // Config stores device info and vibration patterns
-            logger.LogInformation("Loading configuration...");
-            var config = Config.Load(args.Length > 0 ? args[0] : "config.yml");
-            logger.LogInformation("Loaded configuration");
-
             var deviceAddr = config.Device.MacAddress;
 
             // Quit on Ctrl+C
@@ -106,7 +118,7 @@ class Program()
             };
 
             var bluetoothLogger = loggerFactory.CreateLogger<BluetoothSppClient>();
-            using var bluetooth = new BluetoothSppClient(bluetoothLogger);
+            using var bluetooth = new BluetoothSppClient(bluetoothLogger, loggerFactory);
 
             var connectionTcs = new TaskCompletionSource();
 

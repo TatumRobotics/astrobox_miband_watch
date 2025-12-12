@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.IO;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using System;
 
 namespace XiaomiAstroBoxCSharp;
 
@@ -23,9 +25,25 @@ public class DeviceConfig
     public string AuthKey { get; set; } = string.Empty;
 }
 
+public class LoggingConfig
+{
+    public string Default { get; set; } = "Information";
+    public Dictionary<string, string> Filters { get; set; } = new();
+
+    public static LogLevel ParseLoggingLevel(string level)
+    {
+        if (Enum.TryParse<LogLevel>(level, true, out var logLevel))
+        {
+            return logLevel;
+        }
+        return LogLevel.Information;
+    }
+}
+
 public class Config
 {
     public DeviceConfig Device { get; set; } = new();
+    public LoggingConfig Logging { get; set; } = new();
 
     public Dictionary<string, List<VibrationSegment>> Patterns { get; set; } = new();
 

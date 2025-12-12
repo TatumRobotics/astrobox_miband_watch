@@ -3,6 +3,19 @@ device:
   mac_address: 04:34:C3:A4:8D:CA
   auth_key: 13b6840ba233108fd714cbae5f7a3346
 
+logging:
+  default: Information
+  filters:
+    Protocol.CryptographyHelper: Warning
+    Protocol.PacketBuffer: Warning
+    Protocol.PacketFraming: Warning
+    Protocol.PacketProcessor: Warning
+    Authentication.AuthenticationHandler: Warning
+    Bluetooth.BluetoothSppClient: Warning
+    Bluetooth.RfcommSocketManager: Warning
+    Bluetooth.BlueZDeviceManager: Warning
+    Program: Information
+
 # there's a couple example patterns here
 # we should improve them and define specific ones for
 # phone calls, notifications, sms messages, etc.
