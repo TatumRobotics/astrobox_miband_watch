@@ -338,12 +338,20 @@ public class XiaomiBand10 : IDisposable
             {
                 _logger.LogDebug("Device status found!");
                 var deviceStatus = packet.System?.DeviceStatus;
-                if (deviceStatus == null) throw new InvalidOperationException("Device status is null");
+                if (deviceStatus == null)
+                {
+                    _logger.LogWarning("Couldn't find .DeviceStatus in wear status packet!");
+                    return 0;
+                }
                 var battery = deviceStatus.Battery;
-                if (battery == null) throw new InvalidOperationException("Battery info is null");
+                if (battery == null)
+                {
+                    _logger.LogWarning("Couldn't find .Battery in device status packet!");
+                    return 0;
+                }
                 var capacity = battery.Capacity;
                 var chargeState = battery.ChargeStatus;
-                _logger.LogDebug("Battery %: {Capacity}, charge status: {ChargeState}", capacity, chargeState);
+                Console.WriteLine("Battery: {Capacity}%, charge status: {ChargeState}", capacity, chargeState);
                 return capacity;
             },
             timeoutSeconds: 10,
@@ -362,7 +370,7 @@ public class XiaomiBand10 : IDisposable
                 _logger.LogDebug("Got wear status!");
                 if (packet.System == null)
                 {
-                    _logger.LogWarning("Couldn't find system in wear status packet!");
+                    _logger.LogWarning("Couldn't find .System in wear status packet!");
                     return false;
                 }
                 var basicStatus = packet.System.ReportBasicStatus;

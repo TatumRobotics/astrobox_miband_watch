@@ -10,7 +10,6 @@ public static class CryptographyHelper
 {
     /// <summary>
     /// AES-128-CCM encryption with 4-byte tag
-    /// Matches Rust: type Aes128Ccm = Ccm<Aes128, U4, U12>
     /// </summary>
     public static byte[] Aes128CcmEncrypt(byte[] key, byte[] nonce, byte[] aad, byte[] plaintext)
     {
@@ -22,11 +21,11 @@ public static class CryptographyHelper
         // .NET AesCcm with 4-byte tag (32 bits)
         using var ccm = new AesCcm(key);
         var ciphertext = new byte[plaintext.Length];
-        var tag = new byte[4]; // 4-byte tag to match Rust U4
+        var tag = new byte[4];
 
         ccm.Encrypt(nonce, plaintext, ciphertext, tag, aad);
 
-        // Concatenate ciphertext + tag (matches Rust return format)
+        // Concatenate ciphertext + tag
         var result = new byte[ciphertext.Length + tag.Length];
         Array.Copy(ciphertext, 0, result, 0, ciphertext.Length);
         Array.Copy(tag, 0, result, ciphertext.Length, tag.Length);
@@ -64,7 +63,6 @@ public static class CryptographyHelper
 
     /// <summary>
     /// AES-128-CTR encryption/decryption (symmetric operation)
-    /// Matches Rust: Ctr128BE<Aes128>
     /// </summary>
     public static byte[] Aes128CtrCrypt(byte[] key, byte[] iv, byte[] data)
     {
@@ -134,7 +132,6 @@ public static class CryptographyHelper
 
     /// <summary>
     /// KDF for MiWear authentication
-    /// Direct port from Rust kdf_miwear function
     /// </summary>
     public static byte[] KdfMiWear(byte[] secretKey, byte[] phoneNonce, byte[] watchNonce)
     {
@@ -179,7 +176,6 @@ public static class CryptographyHelper
 
     /// <summary>
     /// Convert hex string to 16-byte array
-    /// Matches Rust string_to_u8_16
     /// </summary>
     public static byte[] StringToBytes16(string hex)
     {
@@ -198,7 +194,6 @@ public static class CryptographyHelper
 
     /// <summary>
     /// Generate random bytes
-    /// Matches Rust generate_random_bytes
     /// </summary>
     public static byte[] GenerateRandomBytes(int length)
     {
@@ -209,7 +204,6 @@ public static class CryptographyHelper
 
     /// <summary>
     /// Convert byte array to hex string
-    /// Matches Rust to_hex_string
     /// </summary>
     public static string ToHexString(byte[] data)
     {
@@ -218,7 +212,6 @@ public static class CryptographyHelper
 
     /// <summary>
     /// Convert hex string to bytes
-    /// Matches Rust hex_stream_to_bytes
     /// </summary>
     public static byte[] HexStreamToBytes(string hex)
     {
