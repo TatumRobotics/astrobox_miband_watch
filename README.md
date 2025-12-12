@@ -101,6 +101,7 @@ But right now the only way to trigger vibrations is by command line and typing i
 You can enter in the following commands:
 - "battery" to fetch the battery %
 - "wearing" to fetch if the user is wearing the watch
+- "clock" to set the system time
 - Any of the names of the patterns listed in config.yml
 
 
@@ -139,3 +140,4 @@ You can enter in the following commands:
 - Implement different vibration strengths per user since some users have a harder time feeling the vibrations than others
 - Set the system time on the watch to the actual time with the correct time zone
 - Improve reconnection and make it reconnect within the same process. Right now, it has to shut down before it can reconnect. The Linux service is meant to restart it after a delay. Users walking away with the watch and going out of bluetooth range will cause it to restart a lot, which would have to be considered in the final product.
+- Update timezone to the user's actual location

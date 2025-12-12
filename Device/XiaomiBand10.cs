@@ -331,7 +331,7 @@ public class XiaomiBand10 : IDisposable
     {
         _logger.LogInformation("Requesting battery percent...");
 
-        return await SendRequestAsync(
+        return await SendRequestAsync<uint>(
             WearPacket.Types.Type.System,
             (uint)SystemMessage.Types.SystemID.GetDeviceStatus,
             packet =>
@@ -351,7 +351,7 @@ public class XiaomiBand10 : IDisposable
                 }
                 var capacity = battery.Capacity;
                 var chargeState = battery.ChargeStatus;
-                Console.WriteLine("Battery: {Capacity}%, charge status: {ChargeState}", capacity, chargeState);
+                Console.WriteLine($"Battery: {capacity}%, charge status: {chargeState}");
                 return capacity;
             },
             timeoutSeconds: 10,
@@ -386,6 +386,50 @@ public class XiaomiBand10 : IDisposable
             ct: ct);
     }
     
+    public async Task SetWatchTimeAsync(CancellationToken ct = default)
+    {
+        var currentTime = DateTime.UtcNow;
+        var dateMessage = new Date
+        {
+            Day = (uint)currentTime.Day,
+            Month = (uint)currentTime.Month,
+            Year = (uint)currentTime.Year
+        };
+        var timeMessage = new Time
+        {
+            Hour = (uint)currentTime.Hour,
+            Minute = (uint)currentTime.Minute,
+            Second = (uint)currentTime.Second,
+            Millisecond = (uint)currentTime.Millisecond
+        };
+        // TODO: make time zone match actual location!
+        var timeZoneMessage = new Timezone
+        {
+            DstSaving = 1,
+            Offset = -5,
+            Id = "America/New_York",
+            IdSpec = "EST5EDT"
+        };
+        var systemTimeMessage = new SystemTime
+        {
+            Date = dateMessage,
+            Time = timeMessage,
+            //TimeZone = timeZoneMessage,
+            Is12Hours = true,
+        };
+        var systemMessage = new SystemMessage
+        {
+            SystemTime = systemTimeMessage,
+        };
+        var packet = new WearPacket
+        {
+            Type = WearPacket.Types.Type.System,
+            Id = (uint)SystemMessage.Types.SystemID.SetSystemTime,
+            System = systemMessage,
+        };
+        await SendPacketAsync(packet, encrypt: true, ct);
+    }
+
     public void Dispose()
     {
         _cts.Cancel();

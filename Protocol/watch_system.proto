@@ -270,7 +270,7 @@ message Date {
 
 message Time {
     required uint32 hour = 1;
-    required uint32 minuter = 2;
+    required uint32 minute = 2;
     optional uint32 second = 3;
     optional uint32 millisecond = 4;
 }

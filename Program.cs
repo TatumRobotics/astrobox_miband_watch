@@ -37,6 +37,10 @@ class Program()
                     var isWearingWatch = await device.RequestIsWearingWatchAsync(cts.Token);
                     logger.LogInformation("Wearing the watch? {Wearing}.", isWearingWatch);
                     break;
+                case "clock":
+                    logger.LogInformation("Set clock on watch");
+                    await device.SetWatchTimeAsync(cts.Token);
+                    break;
                 default:
                     logger.LogWarning("Command not found: {Input}", input);
                     break;
@@ -67,9 +71,10 @@ class Program()
 
         logger.LogInformation("Available patterns: {Patterns}", string.Join(", ", config.Patterns.Keys));
 
-        // request battery to make sure its paired
-        var batteryPercent = await device.RequestBatteryPercentAsync(cts.Token);
-        logger.LogInformation("Battery percent: {batteryPercent}", batteryPercent);
+        // update watch time (otherwise it goes out of sync)
+        await device.SetWatchTimeAsync(cts.Token);
+        // it might also be good to periodically update the watch time
+        // like maybe once per day?
     }
 
     async static Task Main(string[] args)
