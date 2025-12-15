@@ -92,7 +92,7 @@ public class BlueZDeviceManager(ILogger<BlueZDeviceManager> logger) : IDisposabl
         {
             logger.LogInformation("Device not paired, registering agent and pairing...");
 
-            // Register our auto-accept agent
+            // Register the auto-accept agent
             var agent = new AutoAcceptAgent();
             await _dbus.RegisterObjectAsync(agent);
 
@@ -149,7 +149,7 @@ public class BlueZDeviceManager(ILogger<BlueZDeviceManager> logger) : IDisposabl
             logger.LogInformation("Device already paired");
         }
 
-        logger.LogInformation("Waiting briefly before RFCOMM connection...");
+        //logger.LogInformation("Waiting briefly before RFCOMM connection...");
         // await Task.Delay(500, ct);
     }
 

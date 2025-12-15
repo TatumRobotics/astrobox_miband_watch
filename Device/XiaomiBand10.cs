@@ -164,7 +164,6 @@ public class XiaomiBand10 : IDisposable
         var vibratorEffect = new VibratorEffect
         {
             Segments = { protoSegments }
-            // item is optional and not needed for TEST_VIBRATOR
         };
 
         // Create SystemMessage with VibratorEffect

@@ -14,8 +14,10 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
 
     // Authentication state
     private byte[] _randomBytes = [];
-    private byte[] _encKey = [];
-    private byte[] _decKey = [];
+    private byte[] _sendingDataEncryptionKey = [];
+    private byte[] _receivingDataDecryptionKey = [];
+    // nonces to prevent replay attacks
+    // nonce stands for "number used once"
     private byte[] _encNonce = [];
     private byte[] _decNonce = [];
     private TaskCompletionSource<bool> _authTcs;
@@ -70,13 +72,13 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             if (IsAuthenticated)
             {
                 _logger.LogInformation("Authentication successful!");
-                _logger.LogDebug("Encryption key: {EncKey}", BitConverter.ToString(_encKey));
-                _logger.LogDebug("Decryption key: {DecKey}", BitConverter.ToString(_decKey));
+                _logger.LogDebug("Encryption key: {EncKey}", BitConverter.ToString(_sendingDataEncryptionKey));
+                _logger.LogDebug("Decryption key: {DecKey}", BitConverter.ToString(_receivingDataDecryptionKey));
                 _logger.LogDebug("Encryption nonce: {EncNonce}", BitConverter.ToString(_encNonce));
                 _logger.LogDebug("Decryption nonce: {DecNonce}", BitConverter.ToString(_decNonce));
 
                 // Create cipher for encrypted communication
-                Cipher = new L2Cipher(_encKey, _decKey, _logger);
+                Cipher = new L2Cipher(_sendingDataEncryptionKey, _receivingDataDecryptionKey, _logger);
             }
             else
             {
@@ -147,20 +149,22 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
 
             // Derive keys using KDF
             _logger.LogDebug("Running KDF with authKey, appRandom, deviceRandom");
+            // a KDF is a key derivation function
             var block64 = CryptographyHelper.KdfMiWear(authKeyBytes, _randomBytes, watchRandom);
             _logger.LogDebug("KDF output (64 bytes): {Output}", BitConverter.ToString(block64));
 
-            _decKey = [.. block64[0..16]];
-            _encKey = [.. block64[16..32]];
+            // these are the random byte sequences that the watch uses to send encrypted packets
+            _receivingDataDecryptionKey = [.. block64[0..16]];
+            _sendingDataEncryptionKey = [.. block64[16..32]];
             _decNonce = [.. block64[32..36]];
             _encNonce = [.. block64[36..40]];
 
-            _logger.LogDebug("Derived decryption key: {DecKey}", BitConverter.ToString(_decKey));
-            _logger.LogDebug("Derived encryption key: {EncKey}", BitConverter.ToString(_encKey));
+            _logger.LogDebug("Derived decryption key: {DecKey}", BitConverter.ToString(_receivingDataDecryptionKey));
+            _logger.LogDebug("Derived encryption key: {EncKey}", BitConverter.ToString(_sendingDataEncryptionKey));
 
             // Verify HMAC
             _logger.LogDebug("Computing expected HMAC");
-            var expectedHmac = CryptographyHelper.HmacSha256(_decKey, watchRandom, _randomBytes);
+            var expectedHmac = CryptographyHelper.HmacSha256(_receivingDataDecryptionKey, watchRandom, _randomBytes);
             _logger.LogDebug("Expected HMAC: {Expected}", BitConverter.ToString(expectedHmac));
             _logger.LogDebug("Received HMAC: {Received}", BitConverter.ToString(watchSign));
             
@@ -174,7 +178,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
 
             // Create encrypted signature
             _logger.LogDebug("Computing app signature HMAC");
-            var appSign = CryptographyHelper.HmacSha256(_encKey, _randomBytes, watchRandom);
+            var appSign = CryptographyHelper.HmacSha256(_sendingDataEncryptionKey, _randomBytes, watchRandom);
             _logger.LogDebug("App signature: {Sign}", BitConverter.ToString(appSign));
 
             // Create companion device info
@@ -197,7 +201,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             // Rest is zeros (counter)
 
             _logger.LogDebug("Encrypting companion device with AES-128-CCM");
-            var encryptedDevice = CryptographyHelper.Aes128CcmEncrypt(_encKey, nonce12, Array.Empty<byte>(), companionBytes);
+            var encryptedDevice = CryptographyHelper.Aes128CcmEncrypt(_sendingDataEncryptionKey, nonce12, Array.Empty<byte>(), companionBytes);
             _logger.LogDebug("Encrypted device ({Length} bytes): {Data}", 
                 encryptedDevice.Length, BitConverter.ToString(encryptedDevice));
 

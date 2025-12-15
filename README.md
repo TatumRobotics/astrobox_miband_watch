@@ -137,6 +137,7 @@ You can enter in the following commands:
 
 
 ## Bluetooth flow diagram
+![Mi Band 10 connection flow chart showing authentication, bluetooth, and high level diagrams.](diagram.png)
 
 ## Future things to do
 - Integrate it with the rest of trManager and the rest of the code
@@ -174,3 +175,10 @@ You can enter in the following commands:
 - The watch thinks its time zone is GMT
 - The RequestIsWearingWatchAsync doesn't work. For some reason the watch doesn't return any response at all!
 - It won't run on Windows because it uses Linux system calls
+
+## Useful resources
+- [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge)
+- [AstroBox](https://github.com/AstralSightStudios/AstroBox-NG)
+- [AstroBox's .proto files (mainly the wear.proto and wear_system.proto)](https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb/tree/main/protos/xiaomi)
+- [Amazon link for the band we went with](https://www.amazon.com/Bcuckood-Compatible-Adjustable-Breathable-Replacement/dp/B0CP218DWN)
+- [Lucidchart flowchart](https://lucid.app/lucidchart/5b3841c9-d670-4ee2-9d9e-7e517568980d/edit?viewport_loc=-180%2C-432%2C4318%2C1976%2C0_0&invitationId=inv_0180c94d-b45f-4fb8-b1d0-a16dcec13252)
