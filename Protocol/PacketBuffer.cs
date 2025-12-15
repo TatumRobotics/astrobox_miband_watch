@@ -1,6 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Buffers.Binary;
 using Microsoft.Extensions.Logging;
 
 namespace XiaomiAstroBoxCSharp.Protocol;
@@ -8,23 +7,33 @@ namespace XiaomiAstroBoxCSharp.Protocol;
 /// <summary>
 /// Manages buffering and extraction of L1 packets from raw byte streams
 /// </summary>
-public class PacketBuffer
+public class PacketBuffer(ILogger logger)
 {
-    private readonly ILogger _logger;
-    private readonly List<byte> _buffer = [];
 
-    public PacketBuffer(ILogger logger)
-    {
-        _logger = logger;
-    }
+    // Backing buffer using a resizable array for fewer allocations than List<byte>.
+    private byte[] _buffer = new byte[512];
+    private int _length;
+
+    private const int HeaderSize = 8;
+    private const int LengthOffset = 4;
 
     /// <summary>
     /// Adds data to the buffer
+    /// (preserves original API signature: byte[] parameter and debug logging)
     /// </summary>
     public void AddData(byte[] data)
     {
-        _buffer.AddRange(data);
-        _logger.LogDebug("Buffer now has {Count} bytes", _buffer.Count);
+        if (data == null || data.Length == 0)
+        {
+            logger.LogDebug("AddData called with empty data");
+            return;
+        }
+
+        EnsureCapacity(data.Length);
+        data.AsSpan().CopyTo(_buffer.AsSpan(_length));
+        _length += data.Length;
+
+        logger.LogDebug("Buffer now has {Count} bytes", _length);
     }
 
     /// <summary>
@@ -36,71 +45,77 @@ public class PacketBuffer
     {
         packet = null;
 
-        // Need at least 8 bytes for header
-        if (_buffer.Count < 8)
+        // Need at least header size
+        if (_length < HeaderSize)
         {
-            _logger.LogTrace("Buffer too small for L1 header: {Count} bytes", _buffer.Count);
+            logger.LogTrace("Buffer too small for L1 header: {Count} bytes", _length);
             return false;
         }
 
         // Find magic bytes (0xA5A5)
-        var magicIndex = FindMagicBytes();
+        var span = _buffer.AsSpan(0, _length);
+        int magicIndex = FindMagic(span);
         if (magicIndex == -1)
         {
-            _logger.LogWarning("No magic bytes found in buffer, clearing {Count} bytes", _buffer.Count);
-            _buffer.Clear();
+            logger.LogWarning("No magic bytes found in buffer, clearing {Count} bytes", _length);
+            Clear();
             return false;
         }
 
         // Remove any garbage before magic
         if (magicIndex > 0)
         {
-            _logger.LogDebug("Removing {Count} garbage bytes before magic", magicIndex);
-            _buffer.RemoveRange(0, magicIndex);
+            logger.LogDebug("Removing {Count} garbage bytes before magic", magicIndex);
+            Consume(magicIndex);
         }
 
-        // Check if we have length field
-        if (_buffer.Count < 8)
+        // Re-evaluate span/length after alignment
+        if (_length < HeaderSize)
         {
-            _logger.LogTrace("Buffer too small after magic alignment: {Count} bytes", _buffer.Count);
+            logger.LogTrace("Buffer too small after magic alignment: {Count} bytes", _length);
             return false;
         }
 
-        // Read packet length and calculate total size
-        var length = BitConverter.ToUInt16(_buffer.ToArray(), 4);
-        var totalLength = 8 + length;
-        _logger.LogDebug("L1 packet length: {Length}, total: {Total}", length, totalLength);
+        span = _buffer.AsSpan(0, _length);
+
+        // Read packet length (explicit little-endian)
+        ushort payloadLen = BinaryPrimitives.ReadUInt16LittleEndian(span.Slice(LengthOffset, 2));
+        int totalLength = HeaderSize + payloadLen;
+        logger.LogDebug("L1 packet length: {Length}, total: {Total}", payloadLen, totalLength);
 
         // Check if we have complete packet
-        if (_buffer.Count < totalLength)
+        if (_length < totalLength)
         {
-            _logger.LogDebug("Waiting for more data: have {Have}, need {Need}", _buffer.Count, totalLength);
+            logger.LogDebug("Waiting for more data: have {Have}, need {Need}", _length, totalLength);
             return false;
         }
 
-        // Extract packet data
-        var packetData = _buffer.Take(totalLength).ToArray();
-        _buffer.RemoveRange(0, totalLength);
-        _logger.LogDebug("Extracted L1 packet: {Data}", BitConverter.ToString(packetData));
+        // Extract packet data (make a copy for parsing and logging)
+        var packetData = new byte[totalLength];
+        span.Slice(0, totalLength).CopyTo(packetData);
+        Consume(totalLength);
+
+        logger.LogDebug("Extracted L1 packet: {Data}", BitConverter.ToString(packetData));
 
         // Parse the packet
         packet = L1Packet.FromBytes(packetData);
         if (packet == null)
         {
-            _logger.LogWarning("Failed to parse L1 packet from extracted data");
+            logger.LogWarning("Failed to parse L1 packet from extracted data");
         }
-        
+
         return packet != null;
     }
 
     /// <summary>
-    /// Finds the index of magic bytes (0xA5A5) in the buffer
+    /// Finds the index of magic bytes (0xA5A5) in the span
     /// </summary>
-    private int FindMagicBytes()
+    private static int FindMagic(ReadOnlySpan<byte> span)
     {
-        for (int i = 0; i <= _buffer.Count - 2; i++)
+        if (span.Length < 2) return -1;
+        for (int i = 0; i <= span.Length - 2; i++)
         {
-            if (_buffer[i] == 0xA5 && _buffer[i + 1] == 0xA5)
+            if (span[i] == 0xA5 && span[i + 1] == 0xA5)
             {
                 return i;
             }
@@ -109,15 +124,44 @@ public class PacketBuffer
     }
 
     /// <summary>
-    /// Gets the current buffer size
+    /// Shift-left the buffer by 'count' bytes (consumes them)
     /// </summary>
-    public int Count => _buffer.Count;
+    private void Consume(int count)
+    {
+        if (count <= 0) return;
+        if (count >= _length)
+        {
+            _length = 0;
+            return;
+        }
+
+        _buffer.AsSpan(count, _length - count).CopyTo(_buffer);
+        _length -= count;
+    }
+
+    /// <summary>
+    /// Ensure the backing buffer can accommodate additional bytes, resizing by doubling when needed
+    /// </summary>
+    private void EnsureCapacity(int additional)
+    {
+        int required = _length + additional;
+        if (required <= _buffer.Length) return;
+        int newSize = Math.Max(_buffer.Length * 2, required);
+        Array.Resize(ref _buffer, newSize);
+    }
+
+    /// <summary>
+    /// Gets the current buffer size
+    /// (preserves original API)
+    /// </summary>
+    public int Count => _length;
 
     /// <summary>
     /// Clears the buffer
+    /// (preserves original API)
     /// </summary>
     public void Clear()
     {
-        _buffer.Clear();
+        _length = 0;
     }
 }

@@ -40,56 +40,15 @@ public class BluetoothSppClient : IDisposable
 
     public async Task ConnectAsync(string macAddress, byte channel = 1, CancellationToken ct = default)
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(BluetoothSppClient));
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(BluetoothSppClient));
+        }
 
         // Initialize D-Bus and ensure device is ready (discovered, trusted, and paired)
         await _deviceManager.InitializeAsync();
         await _deviceManager.EnsureDeviceReadyAsync(macAddress, ct);
 
-        // Connect RFCOMM socket with retries - try multiple channels like Rust does
-        // byte[] channelsToTry = channel == 5 ? [5, 1] : [channel, 5, 1];
-        // channelsToTry = [.. channelsToTry.Distinct()];
-
-        // Exception lastException = null;
-        // bool connected = false;
-
-        // foreach (byte ch in channelsToTry)
-        // {
-        //     _logger.LogInformation("Attempting RFCOMM connection on channel {Channel}...", ch);
-
-        //     for (int attempt = 1; attempt <= 3; attempt++)
-        //     {
-        //         try
-        //         {
-        //             await _socketManager.ConnectAsync(macAddress, ch, ct);
-        //             _logger.LogInformation("RFCOMM connected successfully on channel {Channel}!", ch);
-        //             connected = true;
-        //             break;
-        //         }
-        //         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionRefused)
-        //         {
-        //             lastException = ex;
-        //             _logger.LogWarning("Attempt {Attempt}/3 on channel {Channel} refused", attempt, ch);
-        //             await Task.Delay(500, ct);
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             lastException = ex;
-        //             _logger.LogWarning(ex, "Attempt {Attempt}/3 on channel {Channel} failed", attempt, ch);
-        //             await Task.Delay(500, ct);
-        //         }
-        //     }
-
-        //     if (connected) break;
-        // }
-
-        // if (!connected)
-        // {
-        //     throw new InvalidOperationException($"Failed to connect RFCOMM on all channels", lastException);
-        // }
-
-        // _logger.LogInformation("RFCOMM connection established!");
-        
         // Connect RFCOMM socket on specified channel
         _logger.LogInformation("Attempting RFCOMM connection on channel {Channel}...", channel);
         await _socketManager.ConnectAsync(macAddress, channel, ct);

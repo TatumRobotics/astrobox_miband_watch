@@ -39,7 +39,8 @@ class Program()
                     break;
                 case "clock":
                     logger.LogInformation("Set clock on watch");
-                    await device.SetWatchTimeAsync(cts.Token);
+                    var fakeTime = new DateTime(2025, 3, 16, 15, 16, 23, DateTimeKind.Utc);
+                    await device.SetWatchTimeAsync(fakeTime, cts.Token);
                     break;
                 default:
                     logger.LogWarning("Command not found: {Input}", input);
@@ -72,7 +73,10 @@ class Program()
         logger.LogInformation("Available patterns: {Patterns}", string.Join(", ", config.Patterns.Keys));
 
         // update watch time (otherwise it goes out of sync)
-        await device.SetWatchTimeAsync(cts.Token);
+        // TODO: use real time zone of the robot
+        string timeZoneId = "Eastern Standard Time";
+        TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        await device.SetWatchTimeAsync(TimeZoneInfo.ConvertTime(DateTime.UtcNow, targetZone), cts.Token);
         // it might also be good to periodically update the watch time
         // like maybe once per day?
     }

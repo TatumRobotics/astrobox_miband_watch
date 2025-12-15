@@ -256,10 +256,11 @@ message VibratorError {
 }
 
 message Timezone {
-    required int32 offset = 1;
-    optional int32 dst_saving = 2;
-    required string id = 3;
-    required string id_spec = 4;
+  // offsets are in blocks of 15 min
+  optional sint32 zoneOffset = 1;
+  optional sint32 dstOffset = 2;
+  // names are same as Java timezone names
+  required string name = 3;
 }
 
 message Date {

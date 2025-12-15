@@ -32,6 +32,8 @@ The code was ported from the following AstroBox modules developed by AstralSight
 9. Copy the token value (it should look something like: `13b6840ba233108fd714cbae5f7a3346`)
 10. The watch is probably still connected to the Android phone. In that case, disconnect the watch from the Android phone's bluetooth settings. Then, go to the watch's Settings -> System -> "Connect new phone". On this new screen (there should be a QR code, don't scan it), you must press "Pair" if it pops up while trying to connect to the Pi later.
 
+(based on the instructions from [GadgetBridge](https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/#mi-fitness-mi-health-xiaomi-wear))
+
 ## Configuring the code
 
 In the config.yml file in the main folder, there are a few settings that must be configured for each watch before running the code.
@@ -134,10 +136,41 @@ You can enter in the following commands:
 	- Uses AstroBox's reverse engineered .proto files to know that packet structure
 
 
+## Bluetooth flow diagram
+
 ## Future things to do
 - Integrate it with the rest of trManager and the rest of the code
 - Improve the vibration patterns and define ones for calling, messaging, etc.
+    - You could cancel the vibration (such as if the user picks up the phone call) by sending a blank pattern
 - Implement different vibration strengths per user since some users have a harder time feeling the vibrations than others
 - Set the system time on the watch to the actual time with the correct time zone
 - Improve reconnection and make it reconnect within the same process. Right now, it has to shut down before it can reconnect. The Linux service is meant to restart it after a delay. Users walking away with the watch and going out of bluetooth range will cause it to restart a lot, which would have to be considered in the final product.
 - Update timezone to the user's actual location
+- Using the battery fetching functionality to notify the user when the battery percent gets low
+
+## What I've tested already
+- Causes the watch to disconnect:
+	- Walking away from the Pi
+	- Rebooting the watch
+	- Restarting the Pi
+	- Pressing "connect new phone" will cause the device to disconnect: "Connection closed!"
+		- But it will auto-pair when the program is restarted
+- Sending different patterns
+- Tried all of the different settings and none of them affect the vibrations it can receive
+- Sending one pattern while another is still running (it just stops the old one and starts the new one)
+- Sending a blank pattern
+- Getting battery percent and setting the system time
+- Always uses less than 2% of the CPU, usually 0% except when sending vibration commands
+- Battery life of the watch is very good - from constant usage and a constant bluetooth connection over 4 days, it only used 12% of the battery (100% -> 88%). It's supposed to have 20 days of battery life
+
+## Known issues
+- When the device is removed from the Android phone in the Mi Fitness app, the auth key resets
+- When the device is reset, the auth key resets
+- When the device is disconnected from bluetooth, the app crashes and must be restarted with a Linux service
+- There's no feedback for when exactly the vibration actually ends
+    - If you wanted to control this very precisely, you could send a very very long pattern, make sure it's acknowledged, wait a specific number of seconds, send a blank pattern, then make sure that's acknowledged
+- When connecting from a brand new Pi, you must go into bluetoothctl and do `power on` `scan on` or else the discovery of the watch won't work
+- If the bluetoothctl `power off` command is run, it has and error: "No route to host"
+- The watch thinks its time zone is GMT
+- The RequestIsWearingWatchAsync doesn't work. For some reason the watch doesn't return any response at all!
+- It won't run on Windows because it uses Linux system calls

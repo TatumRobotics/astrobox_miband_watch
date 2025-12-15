@@ -386,9 +386,8 @@ public class XiaomiBand10 : IDisposable
             ct: ct);
     }
     
-    public async Task SetWatchTimeAsync(CancellationToken ct = default)
+    public async Task SetWatchTimeAsync(DateTime currentTime, CancellationToken ct = default)
     {
-        var currentTime = DateTime.UtcNow;
         var dateMessage = new Date
         {
             Day = (uint)currentTime.Day,
@@ -402,14 +401,17 @@ public class XiaomiBand10 : IDisposable
             Second = (uint)currentTime.Second,
             Millisecond = (uint)currentTime.Millisecond
         };
-        // TODO: make time zone match actual location!
-        var timeZoneMessage = new Timezone
-        {
-            DstSaving = 1,
-            Offset = -5,
-            Id = "America/New_York",
-            IdSpec = "EST5EDT"
-        };
+
+        // GetUtcOffset accounts for Daylight savings time, but BaseUtcOffset doesn't. So their difference should always be the dst offset
+        //int xiaomiDSTOffset = (int)((targetZone.GetUtcOffset(currentTime).TotalHours - targetZone.BaseUtcOffset.TotalHours)*4);
+        //Console.WriteLine($"utcoffset: {targetZone.GetUtcOffset(currentTime).TotalHours}   baseoffset: {targetZone.BaseUtcOffset}   dst: {xiaomiDSTOffset}");
+        //var timeZoneMessage = new Timezone
+        //{
+        //    DstOffset = 0,
+        //    ZoneOffset = 0,
+        //    // this needs to be in same format as they are on Android
+        //    Name = "America/New_York",
+        //};
         var systemTimeMessage = new SystemTime
         {
             Date = dateMessage,
@@ -417,6 +419,16 @@ public class XiaomiBand10 : IDisposable
             //TimeZone = timeZoneMessage,
             Is12Hours = true,
         };
+        /*
+         * 
+                .setTimezone(XiaomiProto.TimeZone.newBuilder()
+                        .setZoneOffset(((now.get(Calendar.ZONE_OFFSET) / 1000) / 60) / 15)
+                        .setDstOffset(((now.get(Calendar.DST_OFFSET) / 1000) / 60) / 15)
+                        .setName(tz.getID())
+                        .build())
+        
+        where tz is a Java timezone
+         */
         var systemMessage = new SystemMessage
         {
             SystemTime = systemTimeMessage,
