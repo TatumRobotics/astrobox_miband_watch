@@ -127,6 +127,7 @@ class Program()
             };
 
             var bluetoothLogger = loggerFactory.CreateLogger<BluetoothSppClient>();
+            // "using" ensures bluetooth.Dispose is called before quitting the program
             using var bluetooth = new BluetoothSppClient(bluetoothLogger, loggerFactory);
 
             var connectionTcs = new TaskCompletionSource();

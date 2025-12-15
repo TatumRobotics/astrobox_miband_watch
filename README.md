@@ -17,7 +17,7 @@ The code was ported from the following AstroBox modules developed by AstralSight
 
 ## Getting the authentication token
 
-1. Install the official [Mi Fitness](https://play.google.com/store/apps/details?id=com.xiaomi.wearable&hl=en_US) app on an Android phone
+1. Install the official [Mi Fitness](https://play.google.com/store/apps/details?id=com.xiaomi.wearable&hl=en_US) app on an Android phone (I used version 3.47.0)
 2. Sign in and connect to the Mi Band
 3. Go to the phone's Bluetooth settings
 4. Tap on the Mi Band and press "Unpair" in the bottom right
@@ -182,3 +182,55 @@ You can enter in the following commands:
 - [AstroBox's .proto files (mainly the wear.proto and wear_system.proto)](https://github.com/AstralSightStudios/AstroBox-NG-Module-Pb/tree/main/protos/xiaomi)
 - [Amazon link for the band we went with](https://www.amazon.com/Bcuckood-Compatible-Adjustable-Breathable-Replacement/dp/B0CP218DWN)
 - [Lucidchart flowchart](https://lucid.app/lucidchart/5b3841c9-d670-4ee2-9d9e-7e517568980d/edit?viewport_loc=-180%2C-432%2C4318%2C1976%2C0_0&invitationId=inv_0180c94d-b45f-4fb8-b1d0-a16dcec13252)
+
+## Using my code as an API
+Assuming you have a logger factory and loggers set up for the bluetooth and device classes, create a bluetooth client:
+```cs
+using var bluetooth = new BluetoothSppClient(bluetoothLogger, loggerFactory);
+```
+
+Set up connect and disconnect listeners:
+```cs
+bluetooth.OnConnect(async () =>
+{
+    using var device = new XiaomiBand10(deviceLogger, bluetooth, authKey, loggerFactory);
+	await device.AuthenticateAsync();
+	// this can be used to gaurentee vibration messages were received
+	device.OnAckReceived(sequence =>
+    {
+        Console.WriteLine($"ACK received for sequence {sequence}!");
+    });
+	// add logic to send vibrations, get battery %, etc.
+}
+
+bluetooth.OnDisconnect((string disconnectionReason) =>
+{
+    // add logic to reconnect or exit the program
+});
+```
+
+Connect on bluetooth channel 5:
+```cs
+await bluetooth.ConnectAsync(deviceAddr, channel: 5);
+```
+
+Once connected, you can do any of the following:
+```cs
+// set watch system time
+await device.SetWatchTimeAsync(TimeZoneInfo.ConvertTime(DateTime.UtcNow, myTimeZone), cts.Token);
+
+// get battery percent from 0 to 100
+uint batteryPercent = await device.RequestBatteryPercentAsync(cts.Token);
+
+// send vibration patterns
+await device.VibrateAsync(pattern, cts.Token);
+// where pattern is a list of this structure:
+/*
+public class VibrationSegment
+{
+    public bool On { get; set; }
+    public int Duration { get; set; }
+    public int Strength { get; set; }
+}
+*/
+```
