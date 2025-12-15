@@ -30,7 +30,7 @@ The code was ported from the following AstroBox modules developed by AstralSight
 7. Copy XiaomiFit.main.log from the phone to your computer
 8. Open the file in a text editor and search for `"token":`
 9. Copy the token value (it should look something like: `13b6840ba233108fd714cbae5f7a3346`)
-10. The watch is probably still connected to the Android phone. In that case, disconnect the watch from the Android phone's bluetooth settings. Then, go to the watch's Settings -> System -> "Connect new phone". On this new screen (there should be a QR code, don't scan it), you must press "Pair" if it pops up while trying to connect to the Pi later.
+10. The watch is might still be connected to the Android phone. In that case, disconnect the watch from the Android phone's bluetooth settings. Then, go to the watch's Settings -> System -> "Connect new phone". On this new screen (there should be a QR code, don't scan it), you must press "Pair" if it pops up while trying to connect to the Pi later.
 
 (based on the instructions from [GadgetBridge](https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/#mi-fitness-mi-health-xiaomi-wear))
 
@@ -150,12 +150,11 @@ You can enter in the following commands:
 - Using the battery fetching functionality to notify the user when the battery percent gets low
 
 ## What I've tested already
-- Causes the watch to disconnect:
+- Causes the watch to disconnect, but auto-pair when the program is restarted:
 	- Walking away from the Pi
 	- Rebooting the watch
 	- Restarting the Pi
 	- Pressing "connect new phone" will cause the device to disconnect: "Connection closed!"
-		- But it will auto-pair when the program is restarted
 - Sending different patterns
 - Tried all of the different settings and none of them affect the vibrations it can receive
 - Sending one pattern while another is still running (it just stops the old one and starts the new one)
@@ -163,9 +162,9 @@ You can enter in the following commands:
 - Getting battery percent and setting the system time
 - Always uses less than 2% of the CPU, usually 0% except when sending vibration commands
 - Battery life of the watch is very good - from constant usage and a constant bluetooth connection over 4 days, it only used 12% of the battery (100% -> 88%). It's supposed to have 20 days of battery life
-
+- Deleting the watch from the official Mi Fitness app has no impact on the Pi connecting, so long as the watch isn't connected to the phone's bluetooth
+- Placing the Pi inside the robot's box. It doesn't seem to affect the bluetooth connectivity, but further testing is needed on the physical range of the connection
 ## Known issues
-- When the device is removed from the Android phone in the Mi Fitness app, the auth key resets
 - When the device is reset, the auth key resets
 - When the device is disconnected from bluetooth, the app crashes and must be restarted with a Linux service
 - There's no feedback for when exactly the vibration actually ends
