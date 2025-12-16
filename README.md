@@ -164,6 +164,7 @@ You can enter in the following commands:
 - Battery life of the watch is very good - from constant usage and a constant bluetooth connection over 4 days, it only used 12% of the battery (100% -> 88%). It's supposed to have 20 days of battery life
 - Deleting the watch from the official Mi Fitness app has no impact on the Pi connecting, so long as the watch isn't connected to the phone's bluetooth
 - Placing the Pi inside the robot's box. It doesn't seem to affect the bluetooth connectivity, but further testing is needed on the physical range of the connection
+
 ## Known issues
 - When the device is reset, the auth key resets
 - When the device is disconnected from bluetooth, the app crashes and must be restarted with a Linux service
