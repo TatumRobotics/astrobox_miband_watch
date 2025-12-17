@@ -18,7 +18,7 @@ The code was ported from the following AstroBox modules developed by AstralSight
 ## Getting the authentication token
 
 1. Install the official [Mi Fitness](https://play.google.com/store/apps/details?id=com.xiaomi.wearable&hl=en_US) app on an Android phone (I used version 3.47.0)
-2. Sign in and connect to the Mi Band
+2. Sign in, connect, and pair the Mi Band by going to "Device" at the bottom
 3. Go to the phone's Bluetooth settings
 4. Tap on the Mi Band and press "Unpair" in the bottom right
 5. Connect the phone to any computer via USB
@@ -30,9 +30,11 @@ The code was ported from the following AstroBox modules developed by AstralSight
 7. Copy XiaomiFit.main.log from the phone to your computer
 8. Open the file in a text editor and search for `"token":`
 9. Copy the token value (it should look something like: `13b6840ba233108fd714cbae5f7a3346`)
-10. The watch is might still be connected to the Android phone. In that case, disconnect the watch from the Android phone's bluetooth settings. Then, go to the watch's Settings -> System -> "Connect new phone". On this new screen (there should be a QR code, don't scan it), you must press "Pair" if it pops up while trying to connect to the Pi later.
+10. The watch might still be connected to the Android phone. In that case, disconnect the watch from the Android phone's bluetooth settings. Then, go to the watch's Settings -> System -> "Connect new phone". On this new screen (there should be a QR code, don't scan it), you must press "Pair" if it pops up while trying to connect to the Pi later.
 
 (based on the instructions from [GadgetBridge](https://gadgetbridge.org/basics/pairing/huami-xiaomi-server/#mi-fitness-mi-health-xiaomi-wear))
+
+Note: this may be possible with the iPhone version of the Mi Fitness app since it stores some of its logs in the Files app. Further investigation is needed to see if the auth key is logged in any of those files.
 
 ## Configuring the code
 
@@ -82,6 +84,8 @@ power on
 scan on
 ```
 Then, wait until you see the Xiaomi watch. It can take a minute! It should print the MAC address and the full name of the watch (which should match the ones in your config!).
+Note: if you have connected to the watch from the Pi before and have just reset it, or are having issues finding it in bluetoothctl, run: `remove 04:34:C3:A4:8D:CA` in bluetoothctl (replace that with the device's MAC address).
+
 Run the `exit` command to exit out of the bluetooth command line.
 Now everything should be set up to run the code!
 ```bash
