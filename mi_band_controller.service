@@ -6,8 +6,8 @@ Wants=bluetooth.target
 [Service]
 Type=simple
 User=tatum
-WorkingDirectory=/home/tatum/
-ExecStart=/home/tatum/XiaomiAstroBoxCSharp
+WorkingDirectory=/home/tatum/Desktop/XiaomiAstrobox
+ExecStart=/home/tatum/Desktop/XiaomiAstrobox/XiaomiAstroBoxCSharp
 Restart=always
 RestartSec=10
 Environment=RUST_LOG=info
