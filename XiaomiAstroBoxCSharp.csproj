@@ -36,10 +36,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="config.yml">
+		<!-- Ensure config.yml is emitted next to the published binary (even with PublishSingleFile=true). -->
+		<Content Include="config.yml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-		</None>
+			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+		</Content>
 	</ItemGroup>
 
 </Project>
