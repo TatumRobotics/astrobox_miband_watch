@@ -359,27 +359,36 @@ public class XiaomiBand10 : IDisposable
 
     public async Task<bool> RequestIsWearingWatchAsync(CancellationToken ct = default)
     {
-        _logger.LogInformation("Requesting battery percent...");
+        _logger.LogInformation("Requesting wear status...");
 
         return await SendRequestAsync(
             WearPacket.Types.Type.System,
-            (uint)SystemMessage.Types.SystemID.ReportBasicStatus,
+            (uint)SystemMessage.Types.SystemID.GetWearStatus,
             packet =>
             {
-                _logger.LogDebug("Got wear status!");
+                _logger.LogDebug("Got basic status response");
                 if (packet.System == null)
                 {
                     _logger.LogWarning("Couldn't find .System in wear status packet!");
                     return false;
                 }
-                var basicStatus = packet.System.ReportBasicStatus;
-                if (basicStatus == null)
+
+                // Prefer explicit wear_status if present
+                if (packet.System.WearStatus != 0)
                 {
-                    _logger.LogWarning("Couldn't find basic status in packet for checking if user is wearing the watch.");
-                    return false;
+                    var wearStatus = packet.System.WearStatus;
+                    return wearStatus == BasicStatus.Types.Wearing.On;
                 }
-                var isWearingWatch = (basicStatus.Wearing == BasicStatus.Types.Wearing.On);
-                return isWearingWatch;
+
+                // Fallback to report_basic_status
+                var report = packet.System.ReportBasicStatus;
+                if (report != null && report.Wearing != 0)
+                {
+                    return report.Wearing == BasicStatus.Types.Wearing.On;
+                }
+
+                _logger.LogWarning("No wear status present in response");
+                return false;
             },
             timeoutSeconds: 10,
             ct: ct);
