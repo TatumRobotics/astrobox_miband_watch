@@ -2,6 +2,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using XiaomiAstroBoxCSharp.Bluetooth;
 using XiaomiAstroBoxCSharp.Device;
 
@@ -12,6 +13,12 @@ namespace XiaomiAstroBoxCSharp;
 class Program()
 {
     private static ILogger<Program> logger;
+    // Single global input channel so disconnected sessions don't eat user input.
+    private static readonly Channel<string> InputChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+    {
+        SingleReader = false,
+        SingleWriter = true
+    });
 
     // Simple console REPL so you can manually exercise band commands/patterns.
     private static async Task RunTestingLoopAsync(CancellationTokenSource cts, XiaomiBand10 device, Config config)
@@ -21,9 +28,9 @@ class Program()
             string input;
             try
             {
-                // Make console reads cancellable so a disconnect doesn't leave an old
-                // session consuming the next user command.
-                input = (await Task.Run(() => Console.ReadLine(), cts.Token))?.Trim();
+                // Read from a single, global console pump. This makes the read cancellable
+                // and prevents a canceled session from consuming the first command after reconnect.
+                input = (await InputChannel.Reader.ReadAsync(cts.Token)).Trim();
             }
             catch (OperationCanceledException)
             {
@@ -131,6 +138,18 @@ class Program()
         });
 
         logger = loggerFactory.CreateLogger<Program>();
+
+        // Start a single input pump that feeds the channel for all sessions.
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                var line = Console.ReadLine();
+                if (line == null)
+                    break;
+                await InputChannel.Writer.WriteAsync(line);
+            }
+        });
 
         try
         {
