@@ -60,9 +60,11 @@ class Program()
                     logger.LogInformation("Wearing the watch? {Wearing}.", isWearingWatch);
                     break;
                 case "clock":
-                    logger.LogInformation("Set clock on watch");
-                    var fakeTime = new DateTime(2025, 3, 16, 15, 16, 23, DateTimeKind.Utc);
-                    await device.SetWatchTimeAsync(fakeTime, cts.Token);
+                    logger.LogInformation("Set clock on watch to local system time");
+                    var now = DateTime.Now;
+                    var tz = TimeZoneInfo.Local;
+                    var is12h = !System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
+                    await device.SetWatchTimeAsync(now, tz, is12h, cts.Token);
                     break;
                 default:
                     logger.LogWarning("Command not found: {Input}", input);
@@ -95,13 +97,12 @@ class Program()
 
         logger.LogInformation("Available patterns: {Patterns}", string.Join(", ", config.Patterns.Keys));
 
-        // update watch time (otherwise it goes out of sync)
-        // TODO: use real time zone of the robot
-        string timeZoneId = "Eastern Standard Time";
-        TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        await device.SetWatchTimeAsync(TimeZoneInfo.ConvertTime(DateTime.UtcNow, targetZone), cts.Token);
-        // it might also be good to periodically update the watch time
-        // like maybe once per day?
+        // Update watch time to match RPi local time/zone after auth
+        var now = DateTime.Now;
+        var tz = TimeZoneInfo.Local;
+        var is12h = !System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
+        await device.SetWatchTimeAsync(now, tz, is12h, cts.Token);
+        // it might also be good to periodically update the watch time (e.g., daily)
     }
 
     // Main boot sequence: load config, build logging, connect over Bluetooth RFCOMM,

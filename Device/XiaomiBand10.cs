@@ -385,8 +385,20 @@ public class XiaomiBand10 : IDisposable
             ct: ct);
     }
     
-    public async Task SetWatchTimeAsync(DateTime currentTime, CancellationToken ct = default)
+    public async Task SetWatchTimeAsync(
+        DateTime currentTime,
+        TimeZoneInfo timeZone = null,
+        bool? is12Hours = null,
+        CancellationToken ct = default)
     {
+        timeZone ??= TimeZoneInfo.Local;
+        var offset = timeZone.GetUtcOffset(currentTime);
+        var baseOffset = timeZone.BaseUtcOffset;
+
+        // Offsets are in 15-minute increments per protocol docs/comments.
+        int zoneOffset15 = (int)Math.Round(offset.TotalMinutes / 15.0);
+        int dstOffset15 = (int)Math.Round((offset - baseOffset).TotalMinutes / 15.0);
+
         var dateMessage = new Date
         {
             Day = (uint)currentTime.Day,
@@ -401,22 +413,19 @@ public class XiaomiBand10 : IDisposable
             Millisecond = (uint)currentTime.Millisecond
         };
 
-        // GetUtcOffset accounts for Daylight savings time, but BaseUtcOffset doesn't. So their difference should always be the dst offset
-        //int xiaomiDSTOffset = (int)((targetZone.GetUtcOffset(currentTime).TotalHours - targetZone.BaseUtcOffset.TotalHours)*4);
-        //Console.WriteLine($"utcoffset: {targetZone.GetUtcOffset(currentTime).TotalHours}   baseoffset: {targetZone.BaseUtcOffset}   dst: {xiaomiDSTOffset}");
-        //var timeZoneMessage = new Timezone
-        //{
-        //    DstOffset = 0,
-        //    ZoneOffset = 0,
-        //    // this needs to be in same format as they are on Android
-        //    Name = "America/New_York",
-        //};
+        var timeZoneMessage = new Timezone
+        {
+            DstOffset = dstOffset15,
+            ZoneOffset = zoneOffset15,
+            Name = timeZone.Id
+        };
+
         var systemTimeMessage = new SystemTime
         {
             Date = dateMessage,
             Time = timeMessage,
-            //TimeZone = timeZoneMessage,
-            Is12Hours = true,
+            TimeZone = timeZoneMessage,
+            Is12Hours = is12Hours ?? true,
         };
         /*
          * 
