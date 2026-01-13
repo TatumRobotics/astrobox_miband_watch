@@ -7,16 +7,31 @@ using XiaomiAstroBoxCSharp.Device;
 
 namespace XiaomiAstroBoxCSharp;
 
+// Entry point for the Raspberry Pi app that connects to a Xiaomi Smart Band 10,
+// authenticates, and offers a simple console-driven test loop.
 class Program()
 {
     private static ILogger<Program> logger;
 
-    // Lets users input commands to test the watch
+    // Simple console REPL so you can manually exercise band commands/patterns.
     private static async Task RunTestingLoopAsync(CancellationTokenSource cts, XiaomiBand10 device, Config config)
     {
         while (!cts.Token.IsCancellationRequested)
         {
-            var input = Console.ReadLine()?.Trim();
+            string input;
+            try
+            {
+                // Make console reads cancellable so a disconnect doesn't leave an old
+                // session consuming the next user command.
+                input = (await Task.Run(() => Console.ReadLine(), cts.Token))?.Trim();
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+
+            if (cts.Token.IsCancellationRequested)
+                break;
 
             if (string.IsNullOrEmpty(input))
                 continue;
@@ -49,6 +64,7 @@ class Program()
         }
     }
 
+    // Handles the initial auth handshake and sets up helpers (ACK handler, clock sync).
     private static async Task AuthenticateAsync(CancellationTokenSource cts, XiaomiBand10 device, Config config)
     {
 
@@ -81,6 +97,8 @@ class Program()
         // like maybe once per day?
     }
 
+    // Main boot sequence: load config, build logging, connect over Bluetooth RFCOMM,
+    // authenticate, and keep trying to reconnect if the band goes out of range.
     async static Task Main(string[] args)
     {
         // Config stores device info and vibration patterns
@@ -117,6 +135,7 @@ class Program()
         try
         {
             var deviceAddr = config.Device.MacAddress;
+            var reconnectDelay = TimeSpan.FromSeconds(5);
 
             // Quit on Ctrl+C
             var cts = new CancellationTokenSource();
@@ -126,55 +145,84 @@ class Program()
                 cts.Cancel();
             };
 
-            var bluetoothLogger = loggerFactory.CreateLogger<BluetoothSppClient>();
-            // "using" ensures bluetooth.Dispose is called before quitting the program
-            using var bluetooth = new BluetoothSppClient(bluetoothLogger, loggerFactory);
-
-            var connectionTcs = new TaskCompletionSource();
-
-            bluetooth.OnConnect(async () =>
+            // Outer loop keeps the app alive: after any disconnect, dispose the old Bluetooth
+            // client (closing sockets/read loop) and create a fresh one before retrying.
+            while (!cts.IsCancellationRequested)
             {
+                var bluetoothLogger = loggerFactory.CreateLogger<BluetoothSppClient>();
+                using var bluetooth = new BluetoothSppClient(bluetoothLogger, loggerFactory);
+
+                var connectionTcs = new TaskCompletionSource();
+                CancellationTokenSource sessionCts = null;
+
+                // When the socket connects, create a device instance scoped to this session.
+                bluetooth.OnConnect(async () =>
+                {
+                    try
+                    {
+                        sessionCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                        logger.LogInformation("Device is now connected");
+                        var deviceLogger = loggerFactory.CreateLogger<XiaomiBand10>();
+                        using var device = new XiaomiBand10(deviceLogger, bluetooth, config.Device.AuthKey, loggerFactory);
+                        await AuthenticateAsync(sessionCts, device, config);
+                        await RunTestingLoopAsync(sessionCts, device, config);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error in connection handler");
+                        connectionTcs.TrySetException(ex);
+                    }
+                    finally
+                    {
+                        connectionTcs.TrySetResult();
+                        sessionCts?.Cancel();
+                        sessionCts?.Dispose();
+                    }
+                });
+
+                // If the band drops (out of range, etc.), end the session and trigger a retry.
+                bluetooth.OnDisconnect((string disconnectionReason) =>
+                {
+                    logger.LogError("Device disconnected because: {DisconnectionReason}!", disconnectionReason);
+                    sessionCts?.Cancel();
+                    connectionTcs.TrySetResult();
+                });
+
                 try
                 {
-                    logger.LogInformation("Device is now connected");
-                    var deviceLogger = loggerFactory.CreateLogger<XiaomiBand10>();
-                    using var device = new XiaomiBand10(deviceLogger, bluetooth, config.Device.AuthKey, loggerFactory);
-                    await AuthenticateAsync(cts, device, config);
-                    await RunTestingLoopAsync(cts, device, config);
+                    logger.LogInformation("Connecting to {Device} at {Address}",
+                        config.Device.Name, deviceAddr);
+
+                    await bluetooth.ConnectAsync(deviceAddr, channel: 5, ct: cts.Token);
+                    await connectionTcs.Task;
+                }
+                catch (OperationCanceledException)
+                {
+                    logger.LogInformation("Application shutting down");
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error in connection handler");
-                    connectionTcs.TrySetException(ex);
+                    logger.LogError(ex, "Connection attempt failed");
                 }
-                finally
+
+                // Ensure per-session CTS is cancelled before we loop again.
+                sessionCts?.Cancel();
+
+                if (!cts.IsCancellationRequested)
                 {
-                    connectionTcs.TrySetResult();
+                    logger.LogInformation("Reconnecting in {Seconds} seconds...", reconnectDelay.TotalSeconds);
+                    try
+                    {
+                        await Task.Delay(reconnectDelay, cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // exiting
+                        break;
+                    }
                 }
-            });
-
-            var disconnected = false;
-            bluetooth.OnDisconnect((string disconnectionReason) =>
-            {
-                if (!disconnected)
-                {
-                    disconnected = true;
-                    logger.LogError("Device disconnected because: {DisconnectionReason}!", disconnectionReason);
-                    connectionTcs.TrySetResult();
-                    Environment.Exit(1);
-                }
-            });
-
-            logger.LogInformation("Connecting to {Device} at {Address}",
-                config.Device.Name, deviceAddr);
-
-            await bluetooth.ConnectAsync(deviceAddr, channel: 5);
-
-            await connectionTcs.Task;
-        }
-        catch (OperationCanceledException)
-        {
-            logger.LogInformation("Application shutting down");
+            }
         }
         catch (Exception ex)
         {
