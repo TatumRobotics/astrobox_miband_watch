@@ -3,6 +3,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Channels;
+using System.Collections.Concurrent;
 using XiaomiAstroBoxCSharp.Bluetooth;
 using XiaomiAstroBoxCSharp.Device;
 
@@ -13,6 +14,8 @@ namespace XiaomiAstroBoxCSharp;
 class Program()
 {
     private static ILogger<Program> logger;
+    private static readonly ConcurrentQueue<byte> PendingAckQueue = new();
+    private static int AckSuppressCount = 0;
     // Single global input channel so disconnected sessions don't eat user input.
     private static readonly Channel<string> InputChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
     {
@@ -43,43 +46,73 @@ class Program()
             if (string.IsNullOrEmpty(input))
                 continue;
 
-            if (config.Patterns.TryGetValue(input, out var pattern))
+            using (BeginOutputScope())
             {
-                logger.LogInformation("Playing pattern: {Pattern}", input);
-                await device.VibrateAsync(pattern, cts.Token);
-                continue;
-            }
+                if (config.Patterns.TryGetValue(input, out var pattern))
+                {
+                    logger.LogInformation("Playing pattern: {Pattern}", input);
+                    await device.VibrateAsync(pattern, cts.Token);
+                    continue;
+                }
 
-            switch (input) {
-                case "ping":
-                    var btStatus = device.GetBluetoothConnectionStatus();
-                    var protocolOk = await device.PingAsync(protocolPing: true, timeoutSeconds: 2, ct: cts.Token);
-                    logger.LogInformation(
-                        "Ping: bt_connected={Connected}, protocol_ok={ProtocolOk}, since_rx={SinceRx}, since_tx={SinceTx}",
-                        btStatus.IsConnected,
-                        protocolOk,
-                        btStatus.TimeSinceLastRxUtc?.ToString() ?? "n/a",
-                        btStatus.TimeSinceLastTxUtc?.ToString() ?? "n/a");
-                    break;
-                case "battery":
-                    var batteryPercent = await device.RequestBatteryPercentAsync(cts.Token);
-                    logger.LogInformation("Battery: {Percent}%", batteryPercent);
-                    break;
-                case "wearing":
-                    var isWearingWatch = await device.RequestIsWearingWatchAsync(cts.Token);
-                    logger.LogInformation("Wearing the watch? {Wearing}.", isWearingWatch);
-                    break;
-                case "clock":
-                    logger.LogInformation("Set clock on watch to local system time");
-                    var now = DateTime.Now;
-                    var tz = TimeZoneInfo.Local;
-                    var is12h = !System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
-                    await device.SetWatchTimeAsync(now, tz, is12h, cts.Token);
-                    break;
-                default:
-                    logger.LogWarning("Command not found: {Input}", input);
-                    break;
+                switch (input) {
+                    case "ping":
+                        var btStatus = device.GetBluetoothConnectionStatus();
+                        var protocolOk = await device.PingAsync(protocolPing: true, timeoutSeconds: 2, ct: cts.Token);
+                        logger.LogInformation(
+                            "Ping: bt_connected={Connected}, protocol_ok={ProtocolOk}, since_rx={SinceRx}, since_tx={SinceTx}",
+                            btStatus.IsConnected,
+                            protocolOk,
+                            btStatus.TimeSinceLastRxUtc?.ToString() ?? "n/a",
+                            btStatus.TimeSinceLastTxUtc?.ToString() ?? "n/a");
+                        break;
+                    case "battery":
+                        var status = await device.RequestBatteryStatusAsync(cts.Token, timeoutSeconds: 10);
+                        logger.LogInformation("Battery: {Percent}% (status: {Status})", status.Percent, status.ChargeStatusText);
+                        break;
+                    case "wearing":
+                        var isWearingWatch = await device.RequestIsWearingWatchAsync(cts.Token);
+                        logger.LogInformation("Wearing the watch? {Wearing}.", isWearingWatch);
+                        break;
+                    case "clock":
+                        logger.LogInformation("Set clock on watch to local system time");
+                        var now = DateTime.Now;
+                        var tz = TimeZoneInfo.Local;
+                        var is12h = !System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
+                        await device.SetWatchTimeAsync(now, tz, is12h, cts.Token);
+                        break;
+                    default:
+                        logger.LogWarning("Command not found: {Input}", input);
+                        break;
+                }
             }
+        }
+    }
+
+    private sealed class OutputScope : IDisposable
+    {
+        private int _disposed;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            if (Interlocked.Decrement(ref AckSuppressCount) == 0)
+            {
+                FlushPendingAcks();
+            }
+        }
+    }
+
+    private static IDisposable BeginOutputScope()
+    {
+        Interlocked.Increment(ref AckSuppressCount);
+        return new OutputScope();
+    }
+
+    private static void FlushPendingAcks()
+    {
+        while (PendingAckQueue.TryDequeue(out var seq))
+        {
+            Console.WriteLine($"ACK received for sequence {seq}!");
         }
     }
 
@@ -102,6 +135,11 @@ class Program()
         // Setup vibration acknoledgement handler
         device.OnAckReceived(sequence =>
         {
+            if (Interlocked.CompareExchange(ref AckSuppressCount, 0, 0) != 0)
+            {
+                PendingAckQueue.Enqueue(sequence);
+                return;
+            }
             Console.WriteLine($"ACK received for sequence {sequence}!");
         });
 
@@ -113,6 +151,26 @@ class Program()
         var is12h = !System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
         await device.SetWatchTimeAsync(now, tz, is12h, cts.Token);
         // it might also be good to periodically update the watch time (e.g., daily)
+    }
+
+    private static Task StartBatteryMonitorAsync(ILoggerFactory loggerFactory, CancellationTokenSource cts, XiaomiBand10 device, Config config)
+    {
+        var monitorLogger = loggerFactory.CreateLogger<BatteryMonitor>();
+        var bmCfg = config.BatteryMonitoring;
+
+        var monitor = new BatteryMonitor(
+            monitorLogger,
+            device,
+            bmCfg,
+            tryResolvePatternName: name => config.Patterns.ContainsKey(name),
+            playPattern: async name =>
+            {
+                // We already validated the name exists.
+                await device.VibrateAsync(config.Patterns[name], cts.Token);
+            },
+            beginOutputScope: BeginOutputScope);
+
+        return Task.Run(() => monitor.RunAsync(cts.Token), cts.Token);
     }
 
     // Main boot sequence: load config, build logging, connect over Bluetooth RFCOMM,
@@ -200,6 +258,7 @@ class Program()
                             loggerFactory,
                             diagnosticLogging: config.Logging.DiagnosticMode);
                         await AuthenticateAsync(sessionCts, device, config);
+                        _ = StartBatteryMonitorAsync(loggerFactory, sessionCts, device, config);
                         await RunTestingLoopAsync(sessionCts, device, config);
                     }
                     catch (Exception ex)

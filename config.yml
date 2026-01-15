@@ -20,6 +20,20 @@ logging:
     Bluetooth.BlueZDeviceManager: Warning
     Program: Information
 
+# Background monitor: checks battery periodically and (optionally) vibrates when low.
+battery_monitoring:
+  enabled: true
+  # LOW_BATTERY_THRESHOLD (percent 0-100)
+  low_battery_threshold: 20
+  # Required behavior: check every 6 hours.
+  check_interval_hours: 6
+  # Required behavior: notify every 30 minutes while low + not charging.
+  notify_interval_minutes: 30
+  # While in low-battery notification mode, poll charging state this often so we stop immediately.
+  charging_poll_seconds: 60
+  # A pattern name from `patterns:` to play when low battery is detected.
+  low_battery_pattern: "sos"
+
 # there's a couple example patterns here
 # we should improve them and define specific ones for
 # phone calls, notifications, sms messages, etc.

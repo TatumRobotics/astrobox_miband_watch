@@ -103,6 +103,12 @@ public class XiaomiBand10 : IDisposable
         return _bluetooth.GetConnectionStatus();
     }
 
+    public readonly record struct BatteryStatus(uint Percent, DeviceStatus.Types.Battery.Types.ChargeStatus ChargeStatus)
+    {
+        public bool IsCharging => ChargeStatus == DeviceStatus.Types.Battery.Types.ChargeStatus.Charging;
+        public string ChargeStatusText => ChargeStatus.ToString();
+    }
+
     public XiaomiBand10(
         ILogger<XiaomiBand10> logger,
         BluetoothSppClient bluetooth,
@@ -545,7 +551,15 @@ public class XiaomiBand10 : IDisposable
         EnsureNotDisposed();
         _logger.LogInformation("Requesting battery percent...");
 
-        return await SendRequestAsync<uint>(
+        var status = await RequestBatteryStatusAsync(ct);
+        return status.Percent;
+    }
+
+    public async Task<BatteryStatus> RequestBatteryStatusAsync(CancellationToken ct = default, int timeoutSeconds = 10)
+    {
+        EnsureNotDisposed();
+
+        return await SendRequestAsync<BatteryStatus>(
             WearPacket.Types.Type.System,
             (uint)SystemMessage.Types.SystemID.GetDeviceStatus,
             packet =>
@@ -555,20 +569,19 @@ public class XiaomiBand10 : IDisposable
                 if (deviceStatus == null)
                 {
                     _logger.LogWarning("Couldn't find .DeviceStatus in wear status packet!");
-                    return 0;
+                    return new BatteryStatus(0, DeviceStatus.Types.Battery.Types.ChargeStatus.Unknown);
                 }
                 var battery = deviceStatus.Battery;
                 if (battery == null)
                 {
                     _logger.LogWarning("Couldn't find .Battery in device status packet!");
-                    return 0;
+                    return new BatteryStatus(0, DeviceStatus.Types.Battery.Types.ChargeStatus.Unknown);
                 }
+
                 var capacity = battery.Capacity;
-                var chargeState = battery.ChargeStatus;
-                Console.WriteLine($"Battery: {capacity}%, charge status: {chargeState}");
-                return capacity;
+                return new BatteryStatus(capacity, battery.ChargeStatus);
             },
-            timeoutSeconds: 10,
+            timeoutSeconds: timeoutSeconds,
             ct: ct);
     }
 
