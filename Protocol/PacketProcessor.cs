@@ -18,8 +18,9 @@ public class PacketProcessor
     private readonly AuthenticationHandler _authHandler;
     private readonly Func<byte, Task> _sendAckFunc;
     private readonly PacketBuffer _packetBuffer;
-    private Action<byte> _onAckReceived;
-    private Action<WearPacket> _onPacketReceived;
+    private readonly object _handlerLock = new();
+    private readonly List<Action<byte>> _ackHandlers = new();
+    private readonly List<Action<WearPacket>> _packetHandlers = new();
 
     public PacketProcessor(
         ILogger<PacketProcessor> logger,
@@ -32,22 +33,66 @@ public class PacketProcessor
         _packetBuffer = new PacketBuffer(logger);
     }
 
-    /// <summary>
-    /// Register a callback to be invoked when an ACK packet is received
-    /// </summary>
-    /// <param name="callback">Action that receives the sequence number of the ACK</param>
-    public void OnAckReceived(Action<byte> callback)
+    private sealed class Subscription(Action unsubscribe) : IDisposable
     {
-        _onAckReceived = callback;
+        private Action _unsubscribe = unsubscribe;
+        public void Dispose()
+        {
+            var action = System.Threading.Interlocked.Exchange(ref _unsubscribe, null);
+            action?.Invoke();
+        }
     }
 
     /// <summary>
-    /// Register a callback to be invoked when a packet is received
+    /// Register a callback to be invoked when an ACK packet is received.
+    /// Dispose the returned object to unsubscribe.
     /// </summary>
-    /// <param name="callback">Action that receives the WearPacket</param>
-    public void OnPacketReceived(Action<WearPacket> callback)
+    public IDisposable RegisterAckReceived(Action<byte> callback)
     {
-        _onPacketReceived = callback;
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _ackHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _ackHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Register a callback to be invoked when a packet is received.
+    /// Dispose the returned object to unsubscribe.
+    /// </summary>
+    public IDisposable RegisterPacketReceived(Action<WearPacket> callback)
+    {
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _packetHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _packetHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Clears all registered handlers (useful when tearing down a connection session).
+    /// </summary>
+    public void ClearHandlers()
+    {
+        lock (_handlerLock)
+        {
+            _ackHandlers.Clear();
+            _packetHandlers.Clear();
+        }
     }
 
     public async Task OnDataReceived(byte[] data)
@@ -124,7 +169,16 @@ public class PacketProcessor
     private void HandleAckPacket(L1Packet l1Packet)
     {
         _logger.LogDebug("Received ACK for seq {Seq}", l1Packet.Seq);
-        _onAckReceived?.Invoke(l1Packet.Seq);
+        Action<byte>[] handlers;
+        lock (_handlerLock)
+        {
+            handlers = _ackHandlers.ToArray();
+        }
+        foreach (var h in handlers)
+        {
+            try { h(l1Packet.Seq); }
+            catch (Exception ex) { _logger.LogError(ex, "ACK handler threw"); }
+        }
     }
 
     private void HandleNakPacket(L1Packet l1Packet)
@@ -211,7 +265,16 @@ public class PacketProcessor
             }
             
             // Notify registered handlers
-            _onPacketReceived?.Invoke(packet);
+            Action<WearPacket>[] handlers;
+            lock (_handlerLock)
+            {
+                handlers = _packetHandlers.ToArray();
+            }
+            foreach (var h in handlers)
+            {
+                try { h(packet); }
+                catch (Exception ex) { _logger.LogError(ex, "Packet handler threw"); }
+            }
         }
         catch (Exception ex)
         {

@@ -13,25 +13,77 @@ namespace XiaomiAstroBoxCSharp.Device;
 
 public class XiaomiBand10 : IDisposable
 {
+    public enum XiaomiBand10State
+    {
+        Created = 0,
+        TransportConfigured = 1,
+        Authenticating = 2,
+        Authenticated = 3,
+        Disposed = 4
+    }
+
     private readonly ILogger<XiaomiBand10> _logger;
     private readonly BluetoothSppClient _bluetooth;
     private readonly AuthenticationHandler _authHandler;
     private readonly PacketProcessor _packetProcessor;
-    private readonly CancellationTokenSource _cts;
+    private readonly CancellationTokenSource _lifetimeCts = new();
+    private bool _disposed;
+    private XiaomiBand10State _state = XiaomiBand10State.Created;
 
     // Sequence tracking for transmit
     private byte _txSeq = 0;
     
-    private Action<byte> _onAckReceived;
+    private IDisposable _ackSubscription;
+    private IDisposable _packetSubscription;
     
     // Generic request tracking
-    private class PendingRequest<T>
+    private interface IPendingRequest
     {
-        public TaskCompletionSource<T> Tcs { get; set; }
-        public Func<WearPacket, T> Parser { get; set; }
+        uint MessageId { get; }
+        void TryHandle(WearPacket packet);
+        void Cancel(Exception ex);
+    }
+
+    private sealed class PendingRequest<T> : IPendingRequest
+    {
+        public uint MessageId { get; }
+        private readonly ILogger _logger;
+        private readonly TaskCompletionSource<T> _tcs;
+        private readonly Func<WearPacket, T> _parser;
+
+        public PendingRequest(uint messageId, Func<WearPacket, T> parser, ILogger logger)
+        {
+            MessageId = messageId;
+            _parser = parser ?? throw new ArgumentNullException(nameof(parser));
+            _logger = logger;
+            _tcs = new TaskCompletionSource<T>();
+        }
+
+        public Task<T> Task => _tcs.Task;
+
+        public void TryHandle(WearPacket packet)
+        {
+            try
+            {
+                var result = _parser(packet);
+                _tcs.TrySetResult(result);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error processing response for ID={Id}", MessageId);
+                _tcs.TrySetException(ex);
+            }
+        }
+
+        public void Cancel(Exception ex)
+        {
+            _tcs.TrySetException(ex);
+        }
     }
     
-    private readonly Dictionary<uint, object> _pendingRequests = [];
+    private readonly Dictionary<uint, IPendingRequest> _pendingRequests = [];
+
+    public XiaomiBand10State State => _state;
 
     public XiaomiBand10(
         ILogger<XiaomiBand10> logger,
@@ -41,7 +93,6 @@ public class XiaomiBand10 : IDisposable
     {
         _logger = logger;
         _bluetooth = bluetooth;
-        _cts = new CancellationTokenSource();
 
         var authLogger = loggerFactory.CreateLogger<AuthenticationHandler>();
         _authHandler = new AuthenticationHandler(authLogger, authKey, SendPacketAsync);
@@ -59,7 +110,19 @@ public class XiaomiBand10 : IDisposable
             await _packetProcessor.OnDataReceived(data);
         });
         
-        _packetProcessor.OnPacketReceived(OnPacketReceived);
+        _packetSubscription = _packetProcessor.RegisterPacketReceived(OnPacketReceived);
+    }
+
+    private void SetState(XiaomiBand10State newState)
+    {
+        if (_state == newState) return;
+        _logger.LogInformation("State transition: {Old} -> {New}", _state, newState);
+        _state = newState;
+    }
+
+    private void EnsureNotDisposed()
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(XiaomiBand10));
     }
     
     private void HandleSystemPacket(WearPacket packet)
@@ -72,41 +135,22 @@ public class XiaomiBand10 : IDisposable
         }
         
         // Check if there's a pending request for this message ID
+        IPendingRequest request;
         lock (_pendingRequests)
         {
-            if (_pendingRequests.TryGetValue(packet.Id, out var requestObj))
+            if (_pendingRequests.TryGetValue(packet.Id, out request))
             {
                 _pendingRequests.Remove(packet.Id);
-                
-                // Use reflection to invoke the parser and set the result
-                var requestType = requestObj.GetType();
-                var parserProperty = requestType.GetProperty("Parser");
-                var tcsProperty = requestType.GetProperty("Tcs");
-                
-                if (parserProperty != null && tcsProperty != null)
-                {
-                    try
-                    {
-                        var tcs = tcsProperty.GetValue(requestObj);
-
-                        if (parserProperty.GetValue(requestObj) is Delegate parser && tcs != null)
-                        {
-                            var result = parser.DynamicInvoke(packet);
-                            var setResultMethod = tcs.GetType().GetMethod("TrySetResult");
-                            setResultMethod?.Invoke(tcs, [result]);
-                            _logger.LogDebug("Request for ID={Id} completed successfully", packet.Id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error processing response for ID={Id}", packet.Id);
-                        var tcs = tcsProperty.GetValue(requestObj);
-                        var setExceptionMethod = tcs?.GetType().GetMethod("TrySetException", new[] { typeof(Exception) });
-                        setExceptionMethod?.Invoke(tcs, new object[] { ex });
-                    }
-                }
+            }
+            else
+            {
+                return;
             }
         }
+
+        // Complete outside lock
+        request.TryHandle(packet);
+        _logger.LogDebug("Request for ID={Id} completed successfully", packet.Id);
     }
 
     private void OnPacketReceived(WearPacket packet)
@@ -123,26 +167,32 @@ public class XiaomiBand10 : IDisposable
 
     public void OnAckReceived(Action<byte> callback)
     {
-        _onAckReceived = callback;
-        _packetProcessor.OnAckReceived(callback);
+        _ackSubscription?.Dispose();
+        _ackSubscription = _packetProcessor.RegisterAckReceived(callback);
     }
 
     public async Task<bool> AuthenticateAsync(CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         _logger.LogInformation("Starting authentication process...");
 
         await SendTransportLayerConfigAsync(ct);
+        SetState(XiaomiBand10State.TransportConfigured);
         
         // Wait for L1StartRsp (give device time to respond)
         //_logger.LogDebug("Waiting for L1StartRsp...");
         //await Task.Delay(500, ct);
 
         // Delegate to authentication handler
-        return await _authHandler.AuthenticateAsync(ct);
+        SetState(XiaomiBand10State.Authenticating);
+        var ok = await _authHandler.AuthenticateAsync(ct);
+        if (ok) SetState(XiaomiBand10State.Authenticated);
+        return ok;
     }
 
     public async Task VibrateAsync(List<VibrationSegment> segments, CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         if (!_authHandler.IsAuthenticated)
             throw new InvalidOperationException("Device not authenticated");
 
@@ -187,6 +237,7 @@ public class XiaomiBand10 : IDisposable
 
     private async Task SendPacketAsync(WearPacket packet, bool encrypt = true, CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         _logger.LogDebug("Encoding WearPacket to protobuf: Type={Type}, Id={Id}", packet.Type, packet.Id);
         var pbData = packet.ToByteArray();
         _logger.LogDebug("Protobuf data ({Length} bytes): {Data}", pbData.Length, BitConverter.ToString(pbData));
@@ -218,6 +269,7 @@ public class XiaomiBand10 : IDisposable
 
     private async Task SendTransportLayerConfigAsync(CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         _logger.LogInformation("Sending L1StartReq (SAR handshake)...");
 
         // CmdL1StartReq = start communicating
@@ -252,6 +304,7 @@ public class XiaomiBand10 : IDisposable
 
     private async Task SendAcknowledgementAsync(byte seq)
     {
+        if (_disposed) return;
         _logger.LogDebug("Sending ACK for seq={Seq}", seq);
         var ackPacket = new L1Packet(L1DataType.Ack, false, seq, Array.Empty<byte>());
         var ackBytes = ackPacket.ToBytes();
@@ -266,17 +319,14 @@ public class XiaomiBand10 : IDisposable
         int timeoutSeconds = 10,
         CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         if (!_authHandler.IsAuthenticated)
             throw new InvalidOperationException("Device not authenticated");
 
         _logger.LogInformation("Sending request: Type={Type}, ID={Id}", messageType, messageId);
 
         // Create a new pending request
-        var request = new PendingRequest<T>
-        {
-            Tcs = new TaskCompletionSource<T>(),
-            Parser = parser
-        };
+        var request = new PendingRequest<T>(messageId, parser, _logger);
 
         lock (_pendingRequests)
         {
@@ -299,10 +349,10 @@ public class XiaomiBand10 : IDisposable
             _logger.LogDebug("Request sent, waiting for response...");
 
             // Wait for the response with timeout
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
-            var result = await request.Tcs.Task.WaitAsync(timeoutCts.Token);
+            var result = await request.Task.WaitAsync(timeoutCts.Token);
             _logger.LogInformation("Response received for ID={Id}", messageId);
             return result;
         }
@@ -328,6 +378,7 @@ public class XiaomiBand10 : IDisposable
 
     public async Task<uint> RequestBatteryPercentAsync(CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         _logger.LogInformation("Requesting battery percent...");
 
         return await SendRequestAsync<uint>(
@@ -359,6 +410,7 @@ public class XiaomiBand10 : IDisposable
 
     public async Task<bool> RequestIsWearingWatchAsync(CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         _logger.LogInformation("Requesting wear status...");
 
         return await SendRequestAsync(
@@ -400,6 +452,7 @@ public class XiaomiBand10 : IDisposable
         bool? is12Hours = null,
         CancellationToken ct = default)
     {
+        EnsureNotDisposed();
         timeZone ??= TimeZoneInfo.Local;
         var offset = timeZone.GetUtcOffset(currentTime);
         var baseOffset = timeZone.BaseUtcOffset;
@@ -461,8 +514,29 @@ public class XiaomiBand10 : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
-        _bluetooth.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        SetState(XiaomiBand10State.Disposed);
+
+        _lifetimeCts.Cancel();
+        _lifetimeCts.Dispose();
+
+        // Detach from the shared Bluetooth client (caller owns its lifetime).
+        _bluetooth.SetDataListener(null);
+
+        _ackSubscription?.Dispose();
+        _packetSubscription?.Dispose();
+
+        // Fail any pending requests promptly.
+        lock (_pendingRequests)
+        {
+            foreach (var req in _pendingRequests.Values)
+            {
+                req.Cancel(new ObjectDisposedException(nameof(XiaomiBand10)));
+            }
+            _pendingRequests.Clear();
+        }
+
         GC.SuppressFinalize(this);
     }
 }
