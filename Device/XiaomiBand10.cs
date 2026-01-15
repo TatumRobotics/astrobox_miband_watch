@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using XiaomiAstroBoxCSharp.Authentication;
 using XiaomiAstroBoxCSharp.Bluetooth;
 using XiaomiAstroBoxCSharp.Protocol;
@@ -29,6 +30,17 @@ public class XiaomiBand10 : IDisposable
     private readonly CancellationTokenSource _lifetimeCts = new();
     private bool _disposed;
     private XiaomiBand10State _state = XiaomiBand10State.Created;
+
+    private readonly object _txLock = new();
+    private readonly Dictionary<byte, byte[]> _outboundBySeq = new();
+    private readonly Dictionary<byte, int> _nakRetriesBySeq = new();
+    private const int MaxNakRetriesPerSeq = 3;
+    private const int MaxOutboundCacheEntries = 32;
+
+    private TaskCompletionSource<bool> _sarHandshakeTcs;
+    private IDisposable _cmdSubscription;
+    private IDisposable _internalAckSubscription;
+    private IDisposable _internalNakSubscription;
 
     // Sequence tracking for transmit
     private byte _txSeq = 0;
@@ -100,6 +112,11 @@ public class XiaomiBand10 : IDisposable
         var processorLogger = loggerFactory.CreateLogger<PacketProcessor>();
         _packetProcessor = new PacketProcessor(processorLogger, _authHandler, SendAcknowledgementAsync);
 
+        // Internal protocol handlers (always-on for this device instance)
+        _cmdSubscription = _packetProcessor.RegisterCmdReceived(OnCmdReceived);
+        _internalAckSubscription = _packetProcessor.RegisterAckReceived(OnInternalAckReceived);
+        _internalNakSubscription = _packetProcessor.RegisterNakReceived(OnInternalNakReceived);
+
         _bluetooth.SetDataListener(async (byte[] data, string error) =>
         {
             if (!string.IsNullOrEmpty(error))
@@ -111,6 +128,64 @@ public class XiaomiBand10 : IDisposable
         });
         
         _packetSubscription = _packetProcessor.RegisterPacketReceived(OnPacketReceived);
+    }
+
+    private void OnCmdReceived(L1CmdPacket cmd)
+    {
+        if (cmd == null) return;
+        if (cmd.Cmd == CmdCode.CmdL1StartRsp)
+        {
+            _sarHandshakeTcs?.TrySetResult(true);
+        }
+    }
+
+    private void OnInternalAckReceived(byte seq)
+    {
+        lock (_txLock)
+        {
+            _outboundBySeq.Remove(seq);
+            _nakRetriesBySeq.Remove(seq);
+        }
+    }
+
+    private void OnInternalNakReceived(byte seq)
+    {
+        if (_disposed) return;
+
+        byte[] dataToResend = null;
+        int attempt;
+
+        lock (_txLock)
+        {
+            if (!_outboundBySeq.TryGetValue(seq, out dataToResend))
+            {
+                _logger.LogWarning("Received NAK for seq={Seq} but no cached outbound packet exists", seq);
+                return;
+            }
+
+            _nakRetriesBySeq.TryGetValue(seq, out attempt);
+            attempt++;
+            _nakRetriesBySeq[seq] = attempt;
+        }
+
+        if (attempt > MaxNakRetriesPerSeq)
+        {
+            _logger.LogError("Seq={Seq} exceeded max NAK retries ({Max}). Giving up on resend.", seq, MaxNakRetriesPerSeq);
+            return;
+        }
+
+        _logger.LogWarning("Resending seq={Seq} after NAK (attempt {Attempt}/{Max})", seq, attempt, MaxNakRetriesPerSeq);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _bluetooth.SendAsync(dataToResend, _lifetimeCts.Token);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to resend seq={Seq}", seq);
+            }
+        });
     }
 
     private void SetState(XiaomiBand10State newState)
@@ -176,13 +251,26 @@ public class XiaomiBand10 : IDisposable
         EnsureNotDisposed();
         _logger.LogInformation("Starting authentication process...");
 
+        _sarHandshakeTcs = new TaskCompletionSource<bool>();
         await SendTransportLayerConfigAsync(ct);
         SetState(XiaomiBand10State.TransportConfigured);
-        
-        // Wait for L1StartRsp (give device time to respond)
-        //_logger.LogDebug("Waiting for L1StartRsp...");
-        //await Task.Delay(500, ct);
 
+        // Wait for L1StartRsp to ensure SAR handshake is complete before auth begins.
+        using (var sarTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetimeCts.Token))
+        {
+            sarTimeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                await _sarHandshakeTcs.Task.WaitAsync(sarTimeoutCts.Token);
+                _logger.LogInformation("SAR handshake complete (L1StartRsp received)");
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogError("Timed out waiting for L1StartRsp (SAR handshake)");
+                return false;
+            }
+        }
+        
         // Delegate to authentication handler
         SetState(XiaomiBand10State.Authenticating);
         var ok = await _authHandler.AuthenticateAsync(ct);
@@ -263,6 +351,21 @@ public class XiaomiBand10 : IDisposable
         
         var l1Bytes = l1Packet.ToBytes();
         _logger.LogDebug("Sending L1 packet ({Length} bytes): {Data}", l1Bytes.Length, BitConverter.ToString(l1Bytes));
+
+        // Cache outbound bytes for potential resend on NAK.
+        lock (_txLock)
+        {
+            if (_outboundBySeq.Count >= MaxOutboundCacheEntries)
+            {
+                // Remove the oldest entry by insertion order heuristic: pick the lowest retry entry / first key.
+                // (This is a simple bounded cache; we mainly need recent packets.)
+                var keyToRemove = _outboundBySeq.Keys.First();
+                _outboundBySeq.Remove(keyToRemove);
+                _nakRetriesBySeq.Remove(keyToRemove);
+            }
+            _outboundBySeq[seq] = l1Bytes;
+        }
+
         await _bluetooth.SendAsync(l1Bytes, ct);
         _logger.LogDebug("Packet sent successfully");
     }
@@ -526,6 +629,9 @@ public class XiaomiBand10 : IDisposable
 
         _ackSubscription?.Dispose();
         _packetSubscription?.Dispose();
+        _cmdSubscription?.Dispose();
+        _internalAckSubscription?.Dispose();
+        _internalNakSubscription?.Dispose();
 
         // Fail any pending requests promptly.
         lock (_pendingRequests)
@@ -535,6 +641,12 @@ public class XiaomiBand10 : IDisposable
                 req.Cancel(new ObjectDisposedException(nameof(XiaomiBand10)));
             }
             _pendingRequests.Clear();
+        }
+
+        lock (_txLock)
+        {
+            _outboundBySeq.Clear();
+            _nakRetriesBySeq.Clear();
         }
 
         GC.SuppressFinalize(this);

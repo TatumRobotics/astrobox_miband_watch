@@ -20,7 +20,9 @@ public class PacketProcessor
     private readonly PacketBuffer _packetBuffer;
     private readonly object _handlerLock = new();
     private readonly List<Action<byte>> _ackHandlers = new();
+    private readonly List<Action<byte>> _nakHandlers = new();
     private readonly List<Action<WearPacket>> _packetHandlers = new();
+    private readonly List<Action<L1CmdPacket>> _cmdHandlers = new();
 
     public PacketProcessor(
         ILogger<PacketProcessor> logger,
@@ -64,6 +66,26 @@ public class PacketProcessor
     }
 
     /// <summary>
+    /// Register a callback to be invoked when a NAK packet is received.
+    /// Dispose the returned object to unsubscribe.
+    /// </summary>
+    public IDisposable RegisterNakReceived(Action<byte> callback)
+    {
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _nakHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _nakHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
     /// Register a callback to be invoked when a packet is received.
     /// Dispose the returned object to unsubscribe.
     /// </summary>
@@ -84,6 +106,26 @@ public class PacketProcessor
     }
 
     /// <summary>
+    /// Register a callback to be invoked when an L1 CMD packet is received and parsed.
+    /// Dispose the returned object to unsubscribe.
+    /// </summary>
+    public IDisposable RegisterCmdReceived(Action<L1CmdPacket> callback)
+    {
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _cmdHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _cmdHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
     /// Clears all registered handlers (useful when tearing down a connection session).
     /// </summary>
     public void ClearHandlers()
@@ -91,7 +133,9 @@ public class PacketProcessor
         lock (_handlerLock)
         {
             _ackHandlers.Clear();
+            _nakHandlers.Clear();
             _packetHandlers.Clear();
+            _cmdHandlers.Clear();
         }
     }
 
@@ -184,6 +228,16 @@ public class PacketProcessor
     private void HandleNakPacket(L1Packet l1Packet)
     {
         _logger.LogWarning("Received NAK for seq {Seq}", l1Packet.Seq);
+        Action<byte>[] handlers;
+        lock (_handlerLock)
+        {
+            handlers = _nakHandlers.ToArray();
+        }
+        foreach (var h in handlers)
+        {
+            try { h(l1Packet.Seq); }
+            catch (Exception ex) { _logger.LogError(ex, "NAK handler threw"); }
+        }
     }
 
     private void HandleCmdPacket(L1Packet l1Packet)
@@ -202,6 +256,18 @@ public class PacketProcessor
         }
 
         _logger.LogInformation("L1 CMD: {Cmd}", cmdPacket.Cmd);
+
+        // Notify handlers first so higher layers can coordinate state machines.
+        Action<L1CmdPacket>[] handlers;
+        lock (_handlerLock)
+        {
+            handlers = _cmdHandlers.ToArray();
+        }
+        foreach (var h in handlers)
+        {
+            try { h(cmdPacket); }
+            catch (Exception ex) { _logger.LogError(ex, "CMD handler threw"); }
+        }
 
         switch (cmdPacket.Cmd)
         {
