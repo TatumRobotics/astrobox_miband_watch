@@ -98,6 +98,11 @@ public class XiaomiBand10 : IDisposable
 
     public XiaomiBand10State State => _state;
 
+    public BluetoothSppClient.ConnectionStatus GetBluetoothConnectionStatus()
+    {
+        return _bluetooth.GetConnectionStatus();
+    }
+
     public XiaomiBand10(
         ILogger<XiaomiBand10> logger,
         BluetoothSppClient bluetooth,
@@ -279,6 +284,48 @@ public class XiaomiBand10 : IDisposable
         var ok = await _authHandler.AuthenticateAsync(ct);
         if (ok) SetState(XiaomiBand10State.Authenticated);
         return ok;
+    }
+
+    /// <summary>
+    /// Checks whether the Bluetooth transport is connected, and optionally sends a protocol-level ping
+    /// (requires authentication) to confirm the watch is responsive.
+    /// </summary>
+    public async Task<bool> PingAsync(bool protocolPing = true, int timeoutSeconds = 2, CancellationToken ct = default)
+    {
+        EnsureNotDisposed();
+
+        if (!_bluetooth.IsConnected)
+            return false;
+
+        if (!protocolPing)
+            return true;
+
+        if (!_authHandler.IsAuthenticated)
+        {
+            // Can't reliably ping at the protocol level without completing auth.
+            return true;
+        }
+
+        try
+        {
+            // Lightweight ping: ask for device info and accept any valid response.
+            await SendRequestAsync<bool>(
+                WearPacket.Types.Type.System,
+                (uint)SystemMessage.Types.SystemID.GetDeviceInfo,
+                packet => packet.System?.DeviceInfo != null,
+                timeoutSeconds: timeoutSeconds,
+                ct: ct);
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task VibrateAsync(List<VibrationSegment> segments, CancellationToken ct = default)

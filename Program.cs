@@ -51,6 +51,16 @@ class Program()
             }
 
             switch (input) {
+                case "ping":
+                    var btStatus = device.GetBluetoothConnectionStatus();
+                    var protocolOk = await device.PingAsync(protocolPing: true, timeoutSeconds: 2, ct: cts.Token);
+                    logger.LogInformation(
+                        "Ping: bt_connected={Connected}, protocol_ok={ProtocolOk}, since_rx={SinceRx}, since_tx={SinceTx}",
+                        btStatus.IsConnected,
+                        protocolOk,
+                        btStatus.TimeSinceLastRxUtc?.ToString() ?? "n/a",
+                        btStatus.TimeSinceLastTxUtc?.ToString() ?? "n/a");
+                    break;
                 case "battery":
                     var batteryPercent = await device.RequestBatteryPercentAsync(cts.Token);
                     logger.LogInformation("Battery: {Percent}%", batteryPercent);

@@ -12,12 +12,26 @@ namespace XiaomiAstroBoxCSharp.Bluetooth;
 
 public class BluetoothSppClient : IDisposable
 {
+    public readonly record struct ConnectionStatus(
+        bool IsConnected,
+        DateTimeOffset? LastRxUtc,
+        DateTimeOffset? LastTxUtc)
+    {
+        public TimeSpan? TimeSinceLastRxUtc =>
+            LastRxUtc.HasValue ? DateTimeOffset.UtcNow - LastRxUtc.Value : null;
+
+        public TimeSpan? TimeSinceLastTxUtc =>
+            LastTxUtc.HasValue ? DateTimeOffset.UtcNow - LastTxUtc.Value : null;
+    }
+
     private readonly BlueZDeviceManager _deviceManager;
     private readonly RfcommSocketManager _socketManager;
     private CancellationTokenSource _readCts;
     private Task _readLoopTask;
     private bool _disposed;
     private int _disconnectSignaled;
+    private long _lastRxTicksUtc;
+    private long _lastTxTicksUtc;
 
     private Func<byte[], string, Task> _dataListener;
     private Action _onConnect;
@@ -27,6 +41,16 @@ public class BluetoothSppClient : IDisposable
     public bool IsConnected => _socketManager.IsConnected;
 
     public void SetDataListener(Func<byte[], string, Task> listener) => _dataListener = listener;
+
+    public ConnectionStatus GetConnectionStatus()
+    {
+        var rx = Interlocked.Read(ref _lastRxTicksUtc);
+        var tx = Interlocked.Read(ref _lastTxTicksUtc);
+        return new ConnectionStatus(
+            IsConnected,
+            rx == 0 ? null : new DateTimeOffset(new DateTime(rx, DateTimeKind.Utc)),
+            tx == 0 ? null : new DateTimeOffset(new DateTime(tx, DateTimeKind.Utc)));
+    }
     
     public BluetoothSppClient(ILogger<BluetoothSppClient> logger, ILoggerFactory loggerFactory)
     {
@@ -58,6 +82,11 @@ public class BluetoothSppClient : IDisposable
         _logger.LogInformation("Attempting RFCOMM connection on channel {Channel}...", channel);
         await _socketManager.ConnectAsync(macAddress, channel, ct);
         _logger.LogInformation("RFCOMM connection established on channel {Channel}!", channel);
+
+        // Reset timestamps at session start.
+        Interlocked.Exchange(ref _lastRxTicksUtc, 0);
+        Interlocked.Exchange(ref _lastTxTicksUtc, DateTime.UtcNow.Ticks);
+
         _onConnect?.Invoke();
 
         _readCts = ct.CanBeCanceled
@@ -72,6 +101,7 @@ public class BluetoothSppClient : IDisposable
     public async Task SendAsync(byte[] data, CancellationToken ct = default)
     {
         await _socketManager.WriteAsync(data, ct);
+        Interlocked.Exchange(ref _lastTxTicksUtc, DateTime.UtcNow.Ticks);
     }
 
     private Task ReadLoopAsync(CancellationToken ct)
@@ -115,6 +145,7 @@ public class BluetoothSppClient : IDisposable
                     }
 
                     _logger.LogDebug("Read {BytesRead} bytes", bytesRead);
+                    Interlocked.Exchange(ref _lastRxTicksUtc, DateTime.UtcNow.Ticks);
 
                     var data = new byte[bytesRead];
                     Array.Copy(buffer, data, bytesRead);
