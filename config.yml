@@ -5,6 +5,10 @@ device:
 
 logging:
   default: Information
+  # Safety switch: if true AND your log level for protocol/auth/device is set to Trace,
+  # the app may emit raw packet bytes and other sensitive details to the console.
+  # Keep this false in normal operation.
+  diagnostic_mode: false
   filters:
     Protocol.CryptographyHelper: Warning
     Protocol.PacketBuffer: Warning

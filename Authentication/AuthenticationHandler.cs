@@ -9,7 +9,11 @@ using System.Linq;
 
 namespace XiaomiAstroBoxCSharp.Authentication;
 
-public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, string authKey, Func<WearPacket, bool, CancellationToken, Task> sendPacketFunc)
+public class AuthenticationHandler(
+    ILogger<AuthenticationHandler> _logger,
+    string authKey,
+    Func<WearPacket, bool, CancellationToken, Task> sendPacketFunc,
+    bool diagnosticLogging = false)
 {
 
     // Authentication state
@@ -22,6 +26,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
     private byte[] _decNonce = [];
     private TaskCompletionSource<bool> _authTcs;
     private CancellationToken _authCt = default;
+    private readonly bool _diagnosticLogging = diagnosticLogging;
 
     public bool IsAuthenticated { get; private set; }
     public L2Cipher Cipher { get; private set; }
@@ -41,7 +46,11 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
 
         // Generate random nonce and send AuthAppVerify
         _randomBytes = CryptographyHelper.GenerateRandomBytes(16);
-        _logger.LogDebug("Generated app random bytes: {RandomBytes}", BitConverter.ToString(_randomBytes));
+        _logger.LogDebug("Generated app random bytes ({Length} bytes)", _randomBytes.Length);
+        if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("App random bytes: {RandomBytes}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(_randomBytes));
+        }
 
         var authVerify = new Auth.Types.AppVerify
         {
@@ -74,10 +83,14 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             if (IsAuthenticated)
             {
                 _logger.LogInformation("Authentication successful!");
-                _logger.LogDebug("Encryption key: {EncKey}", BitConverter.ToString(_sendingDataEncryptionKey));
-                _logger.LogDebug("Decryption key: {DecKey}", BitConverter.ToString(_receivingDataDecryptionKey));
-                _logger.LogDebug("Encryption nonce: {EncNonce}", BitConverter.ToString(_encNonce));
-                _logger.LogDebug("Decryption nonce: {DecNonce}", BitConverter.ToString(_decNonce));
+                _logger.LogDebug("Derived session keys/nonces (redacted).");
+                if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+                {
+                    _logger.LogTrace("Encryption key: {EncKey}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(_sendingDataEncryptionKey));
+                    _logger.LogTrace("Decryption key: {DecKey}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(_receivingDataDecryptionKey));
+                    _logger.LogTrace("Encryption nonce: {EncNonce}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(_encNonce));
+                    _logger.LogTrace("Decryption nonce: {DecNonce}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(_decNonce));
+                }
 
                 // Create cipher for encrypted communication
                 Cipher = new L2Cipher(_sendingDataEncryptionKey, _receivingDataDecryptionKey, _logger);
@@ -131,8 +144,13 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             var watchRandom = deviceVerify.DeviceRandom.ToByteArray();
             var watchSign = deviceVerify.DeviceSign.ToByteArray();
 
-            _logger.LogDebug("Device random: {Random}", BitConverter.ToString(watchRandom));
-            _logger.LogDebug("Device sign: {Sign}", BitConverter.ToString(watchSign));
+            _logger.LogDebug("Received device verify payload (random={RandomLen} bytes, sign={SignLen} bytes)",
+                watchRandom.Length, watchSign.Length);
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("Device random: {Random}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(watchRandom));
+                _logger.LogTrace("Device sign: {Sign}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(watchSign));
+            }
 
             if (watchRandom.Length != 16 || watchSign.Length != 32)
             {
@@ -141,7 +159,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
                 throw new InvalidOperationException("Invalid nonce/HMAC length");
             }
 
-            _logger.LogDebug("Using auth key: {Key}", authKey);
+            // Never log auth key (secret).
             var authKeyBytes = CryptographyHelper.StringToBytes16(authKey);
             if (authKeyBytes == null)
             {
@@ -153,7 +171,10 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             _logger.LogDebug("Running KDF with authKey, appRandom, deviceRandom");
             // a KDF is a key derivation function
             var block64 = CryptographyHelper.KdfMiWear(authKeyBytes, _randomBytes, watchRandom);
-            _logger.LogDebug("KDF output (64 bytes): {Output}", BitConverter.ToString(block64));
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("KDF output (64 bytes): {Output}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(block64, keepPrefixBytes: 8));
+            }
 
             // these are the random byte sequences that the watch uses to send encrypted packets
             _receivingDataDecryptionKey = [.. block64[0..16]];
@@ -161,14 +182,16 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             _decNonce = [.. block64[32..36]];
             _encNonce = [.. block64[36..40]];
 
-            _logger.LogDebug("Derived decryption key: {DecKey}", BitConverter.ToString(_receivingDataDecryptionKey));
-            _logger.LogDebug("Derived encryption key: {EncKey}", BitConverter.ToString(_sendingDataEncryptionKey));
+            _logger.LogDebug("Derived encryption/decryption keys (redacted).");
 
             // Verify HMAC
             _logger.LogDebug("Computing expected HMAC");
             var expectedHmac = CryptographyHelper.HmacSha256(_receivingDataDecryptionKey, watchRandom, _randomBytes);
-            _logger.LogDebug("Expected HMAC: {Expected}", BitConverter.ToString(expectedHmac));
-            _logger.LogDebug("Received HMAC: {Received}", BitConverter.ToString(watchSign));
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("Expected HMAC: {Expected}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(expectedHmac, keepPrefixBytes: 8));
+                _logger.LogTrace("Received HMAC: {Received}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(watchSign, keepPrefixBytes: 8));
+            }
             
             if (!watchSign.SequenceEqual(expectedHmac))
             {
@@ -194,18 +217,27 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
 
             // Encrypt companion device info
             var companionBytes = companionDevice.ToByteArray();
-            _logger.LogDebug("Companion device protobuf ({Length} bytes): {Data}", 
-                companionBytes.Length, BitConverter.ToString(companionBytes));
+            _logger.LogDebug("Companion device protobuf ({Length} bytes)", companionBytes.Length);
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("Companion device protobuf: {Data}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(companionBytes));
+            }
             
             var nonce12 = new byte[12];
             Array.Copy(_encNonce, 0, nonce12, 0, 4);
-            _logger.LogDebug("CCM nonce: {Nonce}", BitConverter.ToString(nonce12));
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("CCM nonce: {Nonce}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.RedactHex(nonce12));
+            }
             // Rest is zeros (counter)
 
             _logger.LogDebug("Encrypting companion device with AES-128-CCM");
             var encryptedDevice = CryptographyHelper.Aes128CcmEncrypt(_sendingDataEncryptionKey, nonce12, Array.Empty<byte>(), companionBytes);
-            _logger.LogDebug("Encrypted device ({Length} bytes): {Data}", 
-                encryptedDevice.Length, BitConverter.ToString(encryptedDevice));
+            _logger.LogDebug("Encrypted companion device ({Length} bytes)", encryptedDevice.Length);
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("Encrypted companion device: {Data}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(encryptedDevice));
+            }
 
             // Send AuthAppConfirm
             _logger.LogDebug("Building AuthAppConfirm message");

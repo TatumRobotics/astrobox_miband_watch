@@ -28,6 +28,7 @@ public class XiaomiBand10 : IDisposable
     private readonly AuthenticationHandler _authHandler;
     private readonly PacketProcessor _packetProcessor;
     private readonly CancellationTokenSource _lifetimeCts = new();
+    private readonly bool _diagnosticLogging;
     private bool _disposed;
     private XiaomiBand10State _state = XiaomiBand10State.Created;
 
@@ -101,16 +102,18 @@ public class XiaomiBand10 : IDisposable
         ILogger<XiaomiBand10> logger,
         BluetoothSppClient bluetooth,
         string authKey,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        bool diagnosticLogging = false)
     {
         _logger = logger;
         _bluetooth = bluetooth;
+        _diagnosticLogging = diagnosticLogging;
 
         var authLogger = loggerFactory.CreateLogger<AuthenticationHandler>();
-        _authHandler = new AuthenticationHandler(authLogger, authKey, SendPacketAsync);
+        _authHandler = new AuthenticationHandler(authLogger, authKey, SendPacketAsync, diagnosticLogging: diagnosticLogging);
 
         var processorLogger = loggerFactory.CreateLogger<PacketProcessor>();
-        _packetProcessor = new PacketProcessor(processorLogger, _authHandler, SendAcknowledgementAsync);
+        _packetProcessor = new PacketProcessor(processorLogger, _authHandler, SendAcknowledgementAsync, diagnosticLogging: diagnosticLogging);
 
         // Internal protocol handlers (always-on for this device instance)
         _cmdSubscription = _packetProcessor.RegisterCmdReceived(OnCmdReceived);
@@ -328,7 +331,11 @@ public class XiaomiBand10 : IDisposable
         EnsureNotDisposed();
         _logger.LogDebug("Encoding WearPacket to protobuf: Type={Type}, Id={Id}", packet.Type, packet.Id);
         var pbData = packet.ToByteArray();
-        _logger.LogDebug("Protobuf data ({Length} bytes): {Data}", pbData.Length, BitConverter.ToString(pbData));
+        _logger.LogDebug("Protobuf data ({Length} bytes)", pbData.Length);
+        if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("Protobuf bytes: {Data}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(pbData));
+        }
 
         var shouldEncrypt = encrypt && _authHandler.Cipher != null;
         _logger.LogDebug("Creating L2 packet: encrypt={Encrypt}", shouldEncrypt);
@@ -341,8 +348,11 @@ public class XiaomiBand10 : IDisposable
 
         if (shouldEncrypt)
         {
-            _logger.LogDebug("L2 encrypted payload ({Length} bytes): {Data}", 
-                l2Packet.Payload.Length, BitConverter.ToString(l2Packet.Payload));
+            _logger.LogDebug("L2 encrypted payload ({Length} bytes)", l2Packet.Payload.Length);
+            if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("L2 encrypted payload: {Data}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(l2Packet.Payload));
+            }
         }
 
         var seq = _txSeq++;
@@ -350,7 +360,11 @@ public class XiaomiBand10 : IDisposable
         var l1Packet = l2Packet.ToL1(seq);
         
         var l1Bytes = l1Packet.ToBytes();
-        _logger.LogDebug("Sending L1 packet ({Length} bytes): {Data}", l1Bytes.Length, BitConverter.ToString(l1Bytes));
+        _logger.LogDebug("Sending L1 packet ({Length} bytes)", l1Bytes.Length);
+        if (XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("Sending L1 bytes: {Data}", XiaomiAstroBoxCSharp.Protocol.SensitiveLogging.BytesToHex(l1Bytes));
+        }
 
         // Cache outbound bytes for potential resend on NAK.
         lock (_txLock)

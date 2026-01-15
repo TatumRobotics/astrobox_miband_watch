@@ -183,7 +183,12 @@ class Program()
                         sessionCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
                         logger.LogInformation("Device is now connected");
                         var deviceLogger = loggerFactory.CreateLogger<XiaomiBand10>();
-                        using var device = new XiaomiBand10(deviceLogger, bluetooth, config.Device.AuthKey, loggerFactory);
+                        using var device = new XiaomiBand10(
+                            deviceLogger,
+                            bluetooth,
+                            config.Device.AuthKey,
+                            loggerFactory,
+                            diagnosticLogging: config.Logging.DiagnosticMode);
                         await AuthenticateAsync(sessionCts, device, config);
                         await RunTestingLoopAsync(sessionCts, device, config);
                     }

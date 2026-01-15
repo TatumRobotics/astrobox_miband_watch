@@ -18,6 +18,7 @@ public class PacketProcessor
     private readonly AuthenticationHandler _authHandler;
     private readonly Func<byte, Task> _sendAckFunc;
     private readonly PacketBuffer _packetBuffer;
+    private readonly bool _diagnosticLogging;
     private readonly object _handlerLock = new();
     private readonly List<Action<byte>> _ackHandlers = new();
     private readonly List<Action<byte>> _nakHandlers = new();
@@ -27,12 +28,14 @@ public class PacketProcessor
     public PacketProcessor(
         ILogger<PacketProcessor> logger,
         AuthenticationHandler authHandler,
-        Func<byte, Task> sendAckFunc)
+        Func<byte, Task> sendAckFunc,
+        bool diagnosticLogging = false)
     {
         _logger = logger;
         _authHandler = authHandler;
         _sendAckFunc = sendAckFunc;
         _packetBuffer = new PacketBuffer(logger);
+        _diagnosticLogging = diagnosticLogging;
     }
 
     private sealed class Subscription(Action unsubscribe) : IDisposable
@@ -161,16 +164,22 @@ public class PacketProcessor
 
     private void LogDataReceived(byte[] data)
     {
-        _logger.LogInformation("WATCH DATA RECEIVED: {Count} bytes: {Data}", 
-            data.Length, BitConverter.ToString(data));
+        _logger.LogDebug("WATCH DATA RECEIVED: {Count} bytes", data.Length);
+        if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("WATCH DATA: {Data}", SensitiveLogging.BytesToHex(data));
+        }
     }
 
     private void LogPacketInfo(L1Packet packet, string prefix = "")
     {
         _logger.LogInformation("{Prefix}L1 packet: Type={Type}, Seq={Seq}, Length={Length}, Frx={Frx}", 
             prefix, packet.Type, packet.Seq, packet.Length, packet.Frx);
-        _logger.LogDebug("L1 payload ({Length} bytes): {Data}", 
-            packet.Payload.Length, BitConverter.ToString(packet.Payload));
+        _logger.LogDebug("L1 payload ({Length} bytes)", packet.Payload.Length);
+        if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("L1 payload: {Data}", SensitiveLogging.BytesToHex(packet.Payload));
+        }
     }
 
     private async Task ProcessL1PacketAsync(L1Packet l1Packet)
@@ -301,7 +310,11 @@ public class PacketProcessor
 
         _logger.LogInformation("L2 Packet: Channel={Channel}, OpCode={OpCode}, PayloadLength={Length}", 
             l2Packet.Channel, l2Packet.OpCode, l2Packet.Payload.Length);
-        _logger.LogDebug("L2 payload: {Data}", BitConverter.ToString(l2Packet.Payload));
+        _logger.LogDebug("L2 payload ({Length} bytes)", l2Packet.Payload.Length);
+        if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("L2 payload: {Data}", SensitiveLogging.BytesToHex(l2Packet.Payload));
+        }
 
         if (l2Packet.Channel == L2Channel.Pb)
         {
@@ -344,7 +357,11 @@ public class PacketProcessor
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to decode protobuf packet. Data: {Data}", BitConverter.ToString(data));
+            _logger.LogError(ex, "Failed to decode protobuf packet (length={Length})", data?.Length ?? 0);
+            if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("Failed protobuf bytes: {Data}", SensitiveLogging.BytesToHex(data));
+            }
         }
     }
 }

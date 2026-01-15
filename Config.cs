@@ -30,6 +30,13 @@ public class LoggingConfig
     public string Default { get; set; } = "Information";
     public Dictionary<string, string> Filters { get; set; } = new();
 
+    /// <summary>
+    /// Enables sensitive/raw logging when the logger is set to Trace.
+    /// Off by default to avoid leaking secrets (auth material, encrypted payloads, raw packet bytes).
+    /// </summary>
+    [YamlMember(Alias = "diagnostic_mode")]
+    public bool DiagnosticMode { get; set; } = false;
+
     public static LogLevel ParseLoggingLevel(string level)
     {
         if (Enum.TryParse<LogLevel>(level, true, out var logLevel))
