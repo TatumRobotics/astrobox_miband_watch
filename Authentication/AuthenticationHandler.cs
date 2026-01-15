@@ -21,6 +21,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
     private byte[] _encNonce = [];
     private byte[] _decNonce = [];
     private TaskCompletionSource<bool> _authTcs;
+    private CancellationToken _authCt = default;
 
     public bool IsAuthenticated { get; private set; }
     public L2Cipher Cipher { get; private set; }
@@ -36,6 +37,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
         _logger.LogInformation("Starting authentication...");
 
         _authTcs = new TaskCompletionSource<bool>();
+        _authCt = ct;
 
         // Generate random nonce and send AuthAppVerify
         _randomBytes = CryptographyHelper.GenerateRandomBytes(16);
@@ -226,7 +228,7 @@ public class AuthenticationHandler(ILogger<AuthenticationHandler> _logger, strin
             };
 
             _logger.LogInformation("Sending AuthAppConfirm packet...");
-            await sendPacketFunc(confirmPacket, false, default);
+            await sendPacketFunc(confirmPacket, false, _authCt);
             _logger.LogInformation("Sent AuthAppConfirm");
         }
         catch (Exception ex)

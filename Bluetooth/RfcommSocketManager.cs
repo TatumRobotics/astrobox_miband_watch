@@ -119,11 +119,22 @@ public class RfcommSocketManager(ILogger<RfcommSocketManager> logger) : IDisposa
         await Task.Run(() =>
         {
             int totalWritten = 0;
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
+            if (data.Length == 0)
+                return;
+
+            // Pin once and write slices to correctly handle partial writes.
+            var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            try
+            {
+                var basePtr = handle.AddrOfPinnedObject();
             while (totalWritten < data.Length)
             {
                 ct.ThrowIfCancellationRequested();
                 
-                int bytesWritten = write(fd, data, data.Length);
+                    var remaining = data.Length - totalWritten;
+                    int bytesWritten = write_ptr(fd, IntPtr.Add(basePtr, totalWritten), remaining);
                 if (bytesWritten < 0)
                 {
                     var errno = Marshal.GetLastWin32Error();
@@ -134,6 +145,11 @@ public class RfcommSocketManager(ILogger<RfcommSocketManager> logger) : IDisposa
                     throw new IOException("Socket closed during write");
                 }
                 totalWritten += bytesWritten;
+            }
+            }
+            finally
+            {
+                handle.Free();
             }
         }, ct);
     }
@@ -200,6 +216,10 @@ public class RfcommSocketManager(ILogger<RfcommSocketManager> logger) : IDisposa
 
     [DllImport("libc", SetLastError = true)]
     private static extern int write(int fd, byte[] buf, int count);
+
+    // Pointer-based write to support offsets (partial writes are common for sockets).
+    [DllImport("libc", SetLastError = true, EntryPoint = "write")]
+    private static extern int write_ptr(int fd, IntPtr buf, int count);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct SockAddrRc
