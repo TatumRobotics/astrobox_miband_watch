@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Channels;
 using System.Collections.Concurrent;
+using Protocol;
 using XiaomiAstroBoxCSharp.Bluetooth;
 using XiaomiAstroBoxCSharp.Device;
 
@@ -141,6 +142,18 @@ class Program()
                 return;
             }
             Console.WriteLine($"ACK received for sequence {sequence}!");
+        });
+
+        device.OnVibratorErrorReceived(error =>
+        {
+            if (error.Code == VibratorError.Types.Code.Ok)
+            {
+                return;
+            }
+            using (BeginOutputScope())
+            {
+                logger.LogWarning("Vibrator error reported: {Code}", error.Code);
+            }
         });
 
         logger.LogInformation("Available patterns: {Patterns}", string.Join(", ", config.Patterns.Keys));

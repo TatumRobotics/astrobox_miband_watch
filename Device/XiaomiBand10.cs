@@ -48,6 +48,7 @@ public class XiaomiBand10 : IDisposable
     
     private IDisposable _ackSubscription;
     private IDisposable _packetSubscription;
+    private Action<VibratorError> _vibratorErrorHandler;
     
     // Generic request tracking
     private interface IPendingRequest
@@ -222,6 +223,12 @@ public class XiaomiBand10 : IDisposable
         {
             _logger.LogDebug($"System packet: {packet.System}");
         }
+
+        // Handle vibrator error notifications if present.
+        if (packet.System?.PayloadCase == SystemMessage.PayloadOneofCase.VibratorError)
+        {
+            HandleVibratorError(packet.System);
+        }
         
         // Check if there's a pending request for this message ID
         IPendingRequest request;
@@ -242,6 +249,38 @@ public class XiaomiBand10 : IDisposable
         _logger.LogDebug("Request for ID={Id} completed successfully", packet.Id);
     }
 
+    private void HandleVibratorError(SystemMessage systemMessage)
+    {
+        var error = systemMessage.VibratorError;
+        if (error == null)
+        {
+            return;
+        }
+
+        var handler = _vibratorErrorHandler;
+        if (handler == null)
+        {
+            if (error.Code == VibratorError.Types.Code.Ok)
+            {
+                _logger.LogInformation("Vibrator acknowledged: OK");
+            }
+            else
+            {
+                _logger.LogWarning("Vibrator error reported: {Code}", error.Code);
+            }
+            return;
+        }
+
+        try
+        {
+            handler(error);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "VibratorError handler threw an exception");
+        }
+    }
+
     private void OnPacketReceived(WearPacket packet)
     {
         switch (packet.Type)
@@ -258,6 +297,11 @@ public class XiaomiBand10 : IDisposable
     {
         _ackSubscription?.Dispose();
         _ackSubscription = _packetProcessor.RegisterAckReceived(callback);
+    }
+
+    public void OnVibratorErrorReceived(Action<VibratorError> callback)
+    {
+        _vibratorErrorHandler = callback;
     }
 
     public async Task<bool> AuthenticateAsync(CancellationToken ct = default)
@@ -706,6 +750,7 @@ public class XiaomiBand10 : IDisposable
         _cmdSubscription?.Dispose();
         _internalAckSubscription?.Dispose();
         _internalNakSubscription?.Dispose();
+        _vibratorErrorHandler = null;
 
         // Fail any pending requests promptly.
         lock (_pendingRequests)

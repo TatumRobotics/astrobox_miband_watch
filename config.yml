@@ -24,12 +24,12 @@ logging:
 battery_monitoring:
   enabled: true
   # LOW_BATTERY_THRESHOLD (percent 0-100)
-  low_battery_threshold: 20
+  low_battery_threshold: 40
   # Required behavior: check every 6 hours.
-  check_interval_hours: 6
+  check_interval_hours: 1
   # Required behavior: notify every 30 minutes while low + not charging.
   notify_interval_minutes: 30
-  # While in low-battery notification mode, poll charging state this often so we stop immediately.
+  # While in low-battery notification mode, poll charging state (in seconds) this often so we stop immediately.
   charging_poll_seconds: 60
   # A pattern name from `patterns:` to play when low battery is detected.
   low_battery_pattern: "sos"
