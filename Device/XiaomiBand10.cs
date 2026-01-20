@@ -531,13 +531,17 @@ public class XiaomiBand10 : IDisposable
         uint messageId,
         Func<WearPacket, T> parser,
         int timeoutSeconds = 10,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool logRequest = true)
     {
         EnsureNotDisposed();
         if (!_authHandler.IsAuthenticated)
             throw new InvalidOperationException("Device not authenticated");
 
-        _logger.LogInformation("Sending request: Type={Type}, ID={Id}", messageType, messageId);
+        if (logRequest)
+        {
+            _logger.LogInformation("Sending request: Type={Type}, ID={Id}", messageType, messageId);
+        }
 
         // Create a new pending request
         var request = new PendingRequest<T>(messageId, parser, _logger);
@@ -599,7 +603,10 @@ public class XiaomiBand10 : IDisposable
         return status.Percent;
     }
 
-    public async Task<BatteryStatus> RequestBatteryStatusAsync(CancellationToken ct = default, int timeoutSeconds = 10)
+    public async Task<BatteryStatus> RequestBatteryStatusAsync(
+        CancellationToken ct = default,
+        int timeoutSeconds = 10,
+        bool logRequest = true)
     {
         EnsureNotDisposed();
 
@@ -626,7 +633,8 @@ public class XiaomiBand10 : IDisposable
                 return new BatteryStatus(capacity, battery.ChargeStatus);
             },
             timeoutSeconds: timeoutSeconds,
-            ct: ct);
+            ct: ct,
+            logRequest: logRequest);
     }
 
     public async Task<bool> RequestIsWearingWatchAsync(CancellationToken ct = default)

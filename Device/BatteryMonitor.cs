@@ -63,7 +63,7 @@ public sealed class BatteryMonitor
         XiaomiBand10.BatteryStatus status;
         try
         {
-            status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10);
+            status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -132,7 +132,7 @@ public sealed class BatteryMonitor
             XiaomiBand10.BatteryStatus status;
             using (var outputScope = _beginOutputScope())
             {
-                status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10);
+                status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false);
             }
             if (status.IsCharging)
             {
@@ -152,7 +152,7 @@ public sealed class BatteryMonitor
                 await Task.Delay(pollInterval, ct);
                 using (var outputScope = _beginOutputScope())
                 {
-                    status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10);
+                    status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false);
                 }
                 if (status.IsCharging)
                 {
