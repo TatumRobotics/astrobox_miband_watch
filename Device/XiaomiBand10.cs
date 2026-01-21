@@ -532,7 +532,8 @@ public class XiaomiBand10 : IDisposable
         Func<WearPacket, T> parser,
         int timeoutSeconds = 10,
         CancellationToken ct = default,
-        bool logRequest = true)
+        bool logRequest = true,
+        bool logResponse = true)
     {
         EnsureNotDisposed();
         if (!_authHandler.IsAuthenticated)
@@ -571,7 +572,10 @@ public class XiaomiBand10 : IDisposable
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
             var result = await request.Task.WaitAsync(timeoutCts.Token);
-            _logger.LogInformation("Response received for ID={Id}", messageId);
+            if (logResponse)
+            {
+                _logger.LogInformation("Response received for ID={Id}", messageId);
+            }
             return result;
         }
         catch (OperationCanceledException)
@@ -606,7 +610,8 @@ public class XiaomiBand10 : IDisposable
     public async Task<BatteryStatus> RequestBatteryStatusAsync(
         CancellationToken ct = default,
         int timeoutSeconds = 10,
-        bool logRequest = true)
+        bool logRequest = true,
+        bool logResponse = true)
     {
         EnsureNotDisposed();
 
@@ -634,7 +639,8 @@ public class XiaomiBand10 : IDisposable
             },
             timeoutSeconds: timeoutSeconds,
             ct: ct,
-            logRequest: logRequest);
+            logRequest: logRequest,
+            logResponse: logResponse);
     }
 
     public async Task<bool> RequestIsWearingWatchAsync(CancellationToken ct = default)

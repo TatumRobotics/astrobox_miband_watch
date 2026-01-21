@@ -14,6 +14,7 @@ public sealed class BatteryMonitor
     private readonly Func<string, bool> _tryResolvePatternName;
     private readonly Func<string, Task> _playPattern;
     private readonly Func<IDisposable> _beginOutputScope;
+    private readonly Func<IDisposable> _beginAckDropScope;
 
     private int _lowBatteryLoopRunning;
 
@@ -23,7 +24,8 @@ public sealed class BatteryMonitor
         BatteryMonitoringConfig cfg,
         Func<string, bool> tryResolvePatternName,
         Func<string, Task> playPattern,
-        Func<IDisposable> beginOutputScope)
+        Func<IDisposable> beginOutputScope,
+        Func<IDisposable> beginAckDropScope)
     {
         _logger = logger;
         _device = device;
@@ -31,6 +33,7 @@ public sealed class BatteryMonitor
         _tryResolvePatternName = tryResolvePatternName;
         _playPattern = playPattern;
         _beginOutputScope = beginOutputScope ?? throw new ArgumentNullException(nameof(beginOutputScope));
+        _beginAckDropScope = beginAckDropScope ?? throw new ArgumentNullException(nameof(beginAckDropScope));
     }
 
     public async Task RunAsync(CancellationToken ct)
@@ -59,11 +62,11 @@ public sealed class BatteryMonitor
 
     private async Task CheckOnceAndMaybeNotifyAsync(CancellationToken ct)
     {
-        using var outputScope = _beginOutputScope();
+        using var ackDropScope = _beginAckDropScope();
         XiaomiBand10.BatteryStatus status;
         try
         {
-            status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false);
+            status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false, logResponse: false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -130,9 +133,9 @@ public sealed class BatteryMonitor
         {
             // Before sending, check if we've started charging.
             XiaomiBand10.BatteryStatus status;
-            using (var outputScope = _beginOutputScope())
+            using (var ackDropScope = _beginAckDropScope())
             {
-                status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false);
+                status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false, logResponse: false);
             }
             if (status.IsCharging)
             {
@@ -150,9 +153,9 @@ public sealed class BatteryMonitor
             while (!ct.IsCancellationRequested && DateTimeOffset.UtcNow - started < notifyInterval)
             {
                 await Task.Delay(pollInterval, ct);
-                using (var outputScope = _beginOutputScope())
+                using (var ackDropScope = _beginAckDropScope())
                 {
-                    status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false);
+                    status = await _device.RequestBatteryStatusAsync(ct, timeoutSeconds: 10, logRequest: false, logResponse: false);
                 }
                 if (status.IsCharging)
                 {

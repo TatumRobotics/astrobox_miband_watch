@@ -17,6 +17,7 @@ class Program()
     private static ILogger<Program> logger;
     private static readonly ConcurrentQueue<byte> PendingAckQueue = new();
     private static int AckSuppressCount = 0;
+    private static int AckDropCount = 0;
     // Single global input channel so disconnected sessions don't eat user input.
     private static readonly Channel<string> InputChannel = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
     {
@@ -103,10 +104,26 @@ class Program()
         }
     }
 
+    private sealed class AckDropScope : IDisposable
+    {
+        private int _disposed;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+            Interlocked.Decrement(ref AckDropCount);
+        }
+    }
+
     private static IDisposable BeginOutputScope()
     {
         Interlocked.Increment(ref AckSuppressCount);
         return new OutputScope();
+    }
+
+    private static IDisposable BeginAckDropScope()
+    {
+        Interlocked.Increment(ref AckDropCount);
+        return new AckDropScope();
     }
 
     private static void FlushPendingAcks()
@@ -136,6 +153,10 @@ class Program()
         // Setup vibration acknoledgement handler
         device.OnAckReceived(sequence =>
         {
+            if (Interlocked.CompareExchange(ref AckDropCount, 0, 0) != 0)
+            {
+                return;
+            }
             if (Interlocked.CompareExchange(ref AckSuppressCount, 0, 0) != 0)
             {
                 PendingAckQueue.Enqueue(sequence);
@@ -175,13 +196,14 @@ class Program()
             monitorLogger,
             device,
             bmCfg,
-            tryResolvePatternName: name => config.Patterns.ContainsKey(name),
-            playPattern: async name =>
+            name => config.Patterns.ContainsKey(name),
+            async name =>
             {
                 // We already validated the name exists.
                 await device.VibrateAsync(config.Patterns[name], cts.Token);
             },
-            beginOutputScope: BeginOutputScope);
+            BeginOutputScope,
+            BeginAckDropScope);
 
         return Task.Run(() => monitor.RunAsync(cts.Token), cts.Token);
     }
