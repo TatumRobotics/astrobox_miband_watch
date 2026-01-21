@@ -248,6 +248,8 @@ public class L2Cipher : IL2Cipher
     public byte[] Encrypt(byte[] plaintext)
     {
         _logger?.LogTrace("Encrypting {Length} bytes", plaintext.Length);
+        // NOTE: The upstream AstroBox implementation uses AES-128-CTR with IV == key (SAR v2).
+        // This looks unusual cryptographically, but we keep it for wire-compatibility.
         var result = CryptographyHelper.Aes128CtrCrypt(_encKey, _encKey, plaintext);
         _logger?.LogTrace("Encrypted to {Length} bytes", result.Length);
         return result;
@@ -256,6 +258,7 @@ public class L2Cipher : IL2Cipher
     public byte[] Decrypt(byte[] ciphertext)
     {
         _logger?.LogTrace("Decrypting {Length} bytes", ciphertext.Length);
+        // NOTE: Upstream uses IV == key for decrypt as well (SAR v2).
         var result = CryptographyHelper.Aes128CtrCrypt(_decKey, _decKey, ciphertext);
         _logger?.LogTrace("Decrypted to {Length} bytes", result.Length);
         return result;

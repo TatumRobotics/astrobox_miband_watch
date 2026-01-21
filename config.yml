@@ -1,10 +1,14 @@
 device:
-  name: Xiaomi Smart Band 10 8B18
-  mac_address: 04:34:C3:A4:8B:18
-  auth_key: 8a8cac701fa7bd37339ddd51d513a831
+  name: Xiaomi Smart Band 10 8DCA
+  mac_address: 04:34:C3:A4:8D:CA
+  auth_key: 5c8f6c1026593ec39c28084349846bd1
 
 logging:
   default: Information
+  # Safety switch: if true AND your log level for protocol/auth/device is set to Trace,
+  # the app may emit raw packet bytes and other sensitive details to the console.
+  # Keep this false in normal operation.
+  diagnostic_mode: false
   filters:
     Protocol.CryptographyHelper: Warning
     Protocol.PacketBuffer: Warning
@@ -15,6 +19,20 @@ logging:
     Bluetooth.RfcommSocketManager: Warning
     Bluetooth.BlueZDeviceManager: Warning
     Program: Information
+
+# Background monitor: checks battery periodically and (optionally) vibrates when low.
+battery_monitoring:
+  enabled: true
+  # LOW_BATTERY_THRESHOLD (percent 0-100)
+  low_battery_threshold: 40
+  # Required behavior: check every 6 hours.
+  check_interval_hours: 1
+  # Required behavior: notify every 30 minutes while low + not charging.
+  notify_interval_minutes: 30
+  # While in low-battery notification mode, poll charging state (in seconds) this often so we stop immediately.
+  charging_poll_seconds: 60
+  # A pattern name from `patterns:` to play when low battery is detected.
+  low_battery_pattern: "sos"
 
 # there's a couple example patterns here
 # we should improve them and define specific ones for

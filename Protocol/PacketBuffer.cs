@@ -16,6 +16,8 @@ public class PacketBuffer(ILogger logger)
 
     private const int HeaderSize = 8;
     private const int LengthOffset = 4;
+    // Guardrail against unbounded growth if the stream is corrupted or not aligned.
+    private const int MaxBufferBytes = 1024 * 1024; // 1 MiB
 
     /// <summary>
     /// Adds data to the buffer
@@ -27,6 +29,14 @@ public class PacketBuffer(ILogger logger)
         {
             logger.LogDebug("AddData called with empty data");
             return;
+        }
+
+        if (_length + data.Length > MaxBufferBytes)
+        {
+            logger.LogWarning(
+                "Packet buffer would exceed max size ({Max} bytes). Clearing buffer to resync.",
+                MaxBufferBytes);
+            ClearPreservingMagicPrefix();
         }
 
         EnsureCapacity(data.Length);
@@ -58,7 +68,7 @@ public class PacketBuffer(ILogger logger)
         if (magicIndex == -1)
         {
             logger.LogWarning("No magic bytes found in buffer, clearing {Count} bytes", _length);
-            Clear();
+            ClearPreservingMagicPrefix();
             return false;
         }
 
@@ -162,6 +172,21 @@ public class PacketBuffer(ILogger logger)
     /// </summary>
     public void Clear()
     {
+        _length = 0;
+    }
+
+    /// <summary>
+    /// Clears the buffer, but preserves a trailing 0xA5 byte as a potential start-of-magic prefix.
+    /// This improves resync when reads split the magic bytes across boundaries.
+    /// </summary>
+    private void ClearPreservingMagicPrefix()
+    {
+        if (_length > 0 && _buffer[_length - 1] == 0xA5)
+        {
+            _buffer[0] = 0xA5;
+            _length = 1;
+            return;
+        }
         _length = 0;
     }
 }

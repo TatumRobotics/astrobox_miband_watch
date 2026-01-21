@@ -18,36 +18,128 @@ public class PacketProcessor
     private readonly AuthenticationHandler _authHandler;
     private readonly Func<byte, Task> _sendAckFunc;
     private readonly PacketBuffer _packetBuffer;
-    private Action<byte> _onAckReceived;
-    private Action<WearPacket> _onPacketReceived;
+    private readonly bool _diagnosticLogging;
+    private readonly object _handlerLock = new();
+    private readonly List<Action<byte>> _ackHandlers = new();
+    private readonly List<Action<byte>> _nakHandlers = new();
+    private readonly List<Action<WearPacket>> _packetHandlers = new();
+    private readonly List<Action<L1CmdPacket>> _cmdHandlers = new();
 
     public PacketProcessor(
         ILogger<PacketProcessor> logger,
         AuthenticationHandler authHandler,
-        Func<byte, Task> sendAckFunc)
+        Func<byte, Task> sendAckFunc,
+        bool diagnosticLogging = false)
     {
         _logger = logger;
         _authHandler = authHandler;
         _sendAckFunc = sendAckFunc;
         _packetBuffer = new PacketBuffer(logger);
+        _diagnosticLogging = diagnosticLogging;
+    }
+
+    private sealed class Subscription(Action unsubscribe) : IDisposable
+    {
+        private Action _unsubscribe = unsubscribe;
+        public void Dispose()
+        {
+            var action = System.Threading.Interlocked.Exchange(ref _unsubscribe, null);
+            action?.Invoke();
+        }
     }
 
     /// <summary>
-    /// Register a callback to be invoked when an ACK packet is received
+    /// Register a callback to be invoked when an ACK packet is received.
+    /// Dispose the returned object to unsubscribe.
     /// </summary>
-    /// <param name="callback">Action that receives the sequence number of the ACK</param>
-    public void OnAckReceived(Action<byte> callback)
+    public IDisposable RegisterAckReceived(Action<byte> callback)
     {
-        _onAckReceived = callback;
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _ackHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _ackHandlers.Remove(callback);
+            }
+        });
     }
 
     /// <summary>
-    /// Register a callback to be invoked when a packet is received
+    /// Register a callback to be invoked when a NAK packet is received.
+    /// Dispose the returned object to unsubscribe.
     /// </summary>
-    /// <param name="callback">Action that receives the WearPacket</param>
-    public void OnPacketReceived(Action<WearPacket> callback)
+    public IDisposable RegisterNakReceived(Action<byte> callback)
     {
-        _onPacketReceived = callback;
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _nakHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _nakHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Register a callback to be invoked when a packet is received.
+    /// Dispose the returned object to unsubscribe.
+    /// </summary>
+    public IDisposable RegisterPacketReceived(Action<WearPacket> callback)
+    {
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _packetHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _packetHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Register a callback to be invoked when an L1 CMD packet is received and parsed.
+    /// Dispose the returned object to unsubscribe.
+    /// </summary>
+    public IDisposable RegisterCmdReceived(Action<L1CmdPacket> callback)
+    {
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        lock (_handlerLock)
+        {
+            _cmdHandlers.Add(callback);
+        }
+        return new Subscription(() =>
+        {
+            lock (_handlerLock)
+            {
+                _cmdHandlers.Remove(callback);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Clears all registered handlers (useful when tearing down a connection session).
+    /// </summary>
+    public void ClearHandlers()
+    {
+        lock (_handlerLock)
+        {
+            _ackHandlers.Clear();
+            _nakHandlers.Clear();
+            _packetHandlers.Clear();
+            _cmdHandlers.Clear();
+        }
     }
 
     public async Task OnDataReceived(byte[] data)
@@ -72,16 +164,22 @@ public class PacketProcessor
 
     private void LogDataReceived(byte[] data)
     {
-        _logger.LogInformation("WATCH DATA RECEIVED: {Count} bytes: {Data}", 
-            data.Length, BitConverter.ToString(data));
+        _logger.LogDebug("WATCH DATA RECEIVED: {Count} bytes", data.Length);
+        if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("WATCH DATA: {Data}", SensitiveLogging.BytesToHex(data));
+        }
     }
 
     private void LogPacketInfo(L1Packet packet, string prefix = "")
     {
         _logger.LogInformation("{Prefix}L1 packet: Type={Type}, Seq={Seq}, Length={Length}, Frx={Frx}", 
             prefix, packet.Type, packet.Seq, packet.Length, packet.Frx);
-        _logger.LogDebug("L1 payload ({Length} bytes): {Data}", 
-            packet.Payload.Length, BitConverter.ToString(packet.Payload));
+        _logger.LogDebug("L1 payload ({Length} bytes)", packet.Payload.Length);
+        if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("L1 payload: {Data}", SensitiveLogging.BytesToHex(packet.Payload));
+        }
     }
 
     private async Task ProcessL1PacketAsync(L1Packet l1Packet)
@@ -124,12 +222,31 @@ public class PacketProcessor
     private void HandleAckPacket(L1Packet l1Packet)
     {
         _logger.LogDebug("Received ACK for seq {Seq}", l1Packet.Seq);
-        _onAckReceived?.Invoke(l1Packet.Seq);
+        Action<byte>[] handlers;
+        lock (_handlerLock)
+        {
+            handlers = _ackHandlers.ToArray();
+        }
+        foreach (var h in handlers)
+        {
+            try { h(l1Packet.Seq); }
+            catch (Exception ex) { _logger.LogError(ex, "ACK handler threw"); }
+        }
     }
 
     private void HandleNakPacket(L1Packet l1Packet)
     {
         _logger.LogWarning("Received NAK for seq {Seq}", l1Packet.Seq);
+        Action<byte>[] handlers;
+        lock (_handlerLock)
+        {
+            handlers = _nakHandlers.ToArray();
+        }
+        foreach (var h in handlers)
+        {
+            try { h(l1Packet.Seq); }
+            catch (Exception ex) { _logger.LogError(ex, "NAK handler threw"); }
+        }
     }
 
     private void HandleCmdPacket(L1Packet l1Packet)
@@ -148,6 +265,18 @@ public class PacketProcessor
         }
 
         _logger.LogInformation("L1 CMD: {Cmd}", cmdPacket.Cmd);
+
+        // Notify handlers first so higher layers can coordinate state machines.
+        Action<L1CmdPacket>[] handlers;
+        lock (_handlerLock)
+        {
+            handlers = _cmdHandlers.ToArray();
+        }
+        foreach (var h in handlers)
+        {
+            try { h(cmdPacket); }
+            catch (Exception ex) { _logger.LogError(ex, "CMD handler threw"); }
+        }
 
         switch (cmdPacket.Cmd)
         {
@@ -181,7 +310,11 @@ public class PacketProcessor
 
         _logger.LogInformation("L2 Packet: Channel={Channel}, OpCode={OpCode}, PayloadLength={Length}", 
             l2Packet.Channel, l2Packet.OpCode, l2Packet.Payload.Length);
-        _logger.LogDebug("L2 payload: {Data}", BitConverter.ToString(l2Packet.Payload));
+        _logger.LogDebug("L2 payload ({Length} bytes)", l2Packet.Payload.Length);
+        if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+        {
+            _logger.LogTrace("L2 payload: {Data}", SensitiveLogging.BytesToHex(l2Packet.Payload));
+        }
 
         if (l2Packet.Channel == L2Channel.Pb)
         {
@@ -211,11 +344,24 @@ public class PacketProcessor
             }
             
             // Notify registered handlers
-            _onPacketReceived?.Invoke(packet);
+            Action<WearPacket>[] handlers;
+            lock (_handlerLock)
+            {
+                handlers = _packetHandlers.ToArray();
+            }
+            foreach (var h in handlers)
+            {
+                try { h(packet); }
+                catch (Exception ex) { _logger.LogError(ex, "Packet handler threw"); }
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to decode protobuf packet. Data: {Data}", BitConverter.ToString(data));
+            _logger.LogError(ex, "Failed to decode protobuf packet (length={Length})", data?.Length ?? 0);
+            if (SensitiveLogging.Enabled(_logger, _diagnosticLogging))
+            {
+                _logger.LogTrace("Failed protobuf bytes: {Data}", SensitiveLogging.BytesToHex(data));
+            }
         }
     }
 }
