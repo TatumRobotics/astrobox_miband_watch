@@ -15,7 +15,8 @@ namespace XiaomiAstroBoxCSharp;
 class Program()
 {
     private static ILogger<Program> logger;
-    private static readonly ConcurrentQueue<byte> PendingAckQueue = new();
+    private readonly record struct AckInfo(byte Sequence, string Tag);
+    private static readonly ConcurrentQueue<AckInfo> PendingAckQueue = new();
     private static int AckSuppressCount = 0;
     private static int AckDropCount = 0;
     // Single global input channel so disconnected sessions don't eat user input.
@@ -53,14 +54,14 @@ class Program()
                 if (config.Patterns.TryGetValue(input, out var pattern))
                 {
                     logger.LogInformation("Playing pattern: {Pattern}", input);
-                    await device.VibrateAsync(pattern, cts.Token);
+                    await device.VibrateAsync(pattern, cts.Token, ackTag: input);
                     continue;
                 }
 
                 switch (input) {
                     case "ping":
                         var btStatus = device.GetBluetoothConnectionStatus();
-                        var protocolOk = await device.PingAsync(protocolPing: true, timeoutSeconds: 2, ct: cts.Token);
+                        var protocolOk = await device.PingAsync(protocolPing: true, timeoutSeconds: 2, ct: cts.Token, ackTag: input);
                         logger.LogInformation(
                             "Ping: bt_connected={Connected}, protocol_ok={ProtocolOk}, since_rx={SinceRx}, since_tx={SinceTx}",
                             btStatus.IsConnected,
@@ -69,11 +70,11 @@ class Program()
                             btStatus.TimeSinceLastTxUtc?.ToString() ?? "n/a");
                         break;
                     case "battery":
-                        var status = await device.RequestBatteryStatusAsync(cts.Token, timeoutSeconds: 10);
+                        var status = await device.RequestBatteryStatusAsync(cts.Token, timeoutSeconds: 10, ackTag: input);
                         logger.LogInformation("Battery: {Percent}% (status: {Status})", status.Percent, status.ChargeStatusText);
                         break;
                     case "wearing":
-                        var isWearingWatch = await device.RequestIsWearingWatchAsync(cts.Token);
+                        var isWearingWatch = await device.RequestIsWearingWatchAsync(cts.Token, ackTag: input);
                         logger.LogInformation("Wearing the watch? {Wearing}.", isWearingWatch);
                         break;
                     case "clock":
@@ -81,7 +82,7 @@ class Program()
                         var now = DateTime.Now;
                         var tz = TimeZoneInfo.Local;
                         var is12h = !System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains("H");
-                        await device.SetWatchTimeAsync(now, tz, is12h, cts.Token);
+                        await device.SetWatchTimeAsync(now, tz, is12h, cts.Token, ackTag: input);
                         break;
                     default:
                         logger.LogWarning("Command not found: {Input}", input);
@@ -128,10 +129,20 @@ class Program()
 
     private static void FlushPendingAcks()
     {
-        while (PendingAckQueue.TryDequeue(out var seq))
+        while (PendingAckQueue.TryDequeue(out var info))
         {
-            Console.WriteLine($"ACK received for sequence {seq}!");
+            WriteAck(info.Sequence, info.Tag);
         }
+    }
+
+    private static void WriteAck(byte sequence, string tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            Console.WriteLine($"ACK received for sequence {sequence}!");
+            return;
+        }
+        Console.WriteLine($"ACK received for sequence {sequence} ({tag})!");
     }
 
     // Handles the initial auth handshake and sets up helpers (ACK handler, clock sync).
@@ -151,7 +162,7 @@ class Program()
         logger.LogInformation("Device authenticated successfully!");
 
         // Setup vibration acknoledgement handler
-        device.OnAckReceived(sequence =>
+        device.OnAckReceivedDetailed((sequence, tag) =>
         {
             if (Interlocked.CompareExchange(ref AckDropCount, 0, 0) != 0)
             {
@@ -159,10 +170,10 @@ class Program()
             }
             if (Interlocked.CompareExchange(ref AckSuppressCount, 0, 0) != 0)
             {
-                PendingAckQueue.Enqueue(sequence);
+                PendingAckQueue.Enqueue(new AckInfo(sequence, tag));
                 return;
             }
-            Console.WriteLine($"ACK received for sequence {sequence}!");
+            WriteAck(sequence, tag);
         });
 
         device.OnVibratorErrorReceived(error =>

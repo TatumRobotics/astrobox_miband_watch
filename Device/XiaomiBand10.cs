@@ -35,6 +35,8 @@ public class XiaomiBand10 : IDisposable
     private readonly object _txLock = new();
     private readonly Dictionary<byte, byte[]> _outboundBySeq = new();
     private readonly Dictionary<byte, int> _nakRetriesBySeq = new();
+    private readonly Dictionary<byte, string> _outboundAckTags = new();
+    private readonly Dictionary<byte, string> _recentAckTags = new();
     private const int MaxNakRetriesPerSeq = 3;
     private const int MaxOutboundCacheEntries = 32;
 
@@ -160,6 +162,16 @@ public class XiaomiBand10 : IDisposable
         {
             _outboundBySeq.Remove(seq);
             _nakRetriesBySeq.Remove(seq);
+            if (_outboundAckTags.TryGetValue(seq, out var tag))
+            {
+                _outboundAckTags.Remove(seq);
+                if (_recentAckTags.Count >= MaxOutboundCacheEntries)
+                {
+                    var keyToRemove = _recentAckTags.Keys.First();
+                    _recentAckTags.Remove(keyToRemove);
+                }
+                _recentAckTags[seq] = tag;
+            }
         }
     }
 
@@ -299,9 +311,37 @@ public class XiaomiBand10 : IDisposable
         _ackSubscription = _packetProcessor.RegisterAckReceived(callback);
     }
 
+    public void OnAckReceivedDetailed(Action<byte, string> callback)
+    {
+        if (callback == null) throw new ArgumentNullException(nameof(callback));
+        _ackSubscription?.Dispose();
+        _ackSubscription = _packetProcessor.RegisterAckReceived(seq =>
+        {
+            var tag = ConsumeAckTag(seq);
+            callback(seq, tag);
+        });
+    }
+
     public void OnVibratorErrorReceived(Action<VibratorError> callback)
     {
         _vibratorErrorHandler = callback;
+    }
+
+    private string ConsumeAckTag(byte seq)
+    {
+        lock (_txLock)
+        {
+            if (_recentAckTags.TryGetValue(seq, out var tag))
+            {
+                _recentAckTags.Remove(seq);
+                return tag;
+            }
+            if (_outboundAckTags.TryGetValue(seq, out tag))
+            {
+                return tag;
+            }
+        }
+        return string.Empty;
     }
 
     public async Task<bool> AuthenticateAsync(CancellationToken ct = default)
@@ -340,7 +380,11 @@ public class XiaomiBand10 : IDisposable
     /// Checks whether the Bluetooth transport is connected, and optionally sends a protocol-level ping
     /// (requires authentication) to confirm the watch is responsive.
     /// </summary>
-    public async Task<bool> PingAsync(bool protocolPing = true, int timeoutSeconds = 2, CancellationToken ct = default)
+    public async Task<bool> PingAsync(
+        bool protocolPing = true,
+        int timeoutSeconds = 2,
+        CancellationToken ct = default,
+        string ackTag = null)
     {
         EnsureNotDisposed();
 
@@ -364,7 +408,8 @@ public class XiaomiBand10 : IDisposable
                 (uint)SystemMessage.Types.SystemID.GetDeviceInfo,
                 packet => packet.System?.DeviceInfo != null,
                 timeoutSeconds: timeoutSeconds,
-                ct: ct);
+                ct: ct,
+                ackTag: ackTag);
 
             return true;
         }
@@ -378,7 +423,7 @@ public class XiaomiBand10 : IDisposable
         }
     }
 
-    public async Task VibrateAsync(List<VibrationSegment> segments, CancellationToken ct = default)
+    public async Task VibrateAsync(List<VibrationSegment> segments, CancellationToken ct = default, string ackTag = null)
     {
         EnsureNotDisposed();
         if (!_authHandler.IsAuthenticated)
@@ -419,11 +464,20 @@ public class XiaomiBand10 : IDisposable
         };
 
         _logger.LogDebug("Sending TEST_VIBRATOR packet with {Count} segments", segments.Count);
-        await SendPacketAsync(packet, encrypt: true, ct);
+        await SendPacketAsync(packet, encrypt: true, ct, ackTagOverride: ackTag);
         _logger.LogInformation("Vibration packet sent successfully");
     }
 
-    private async Task SendPacketAsync(WearPacket packet, bool encrypt = true, CancellationToken ct = default)
+    private Task SendPacketAsync(WearPacket packet, bool encrypt, CancellationToken ct)
+    {
+        return SendPacketAsync(packet, encrypt, ct, ackTagOverride: null);
+    }
+
+    private async Task SendPacketAsync(
+        WearPacket packet,
+        bool encrypt = true,
+        CancellationToken ct = default,
+        string ackTagOverride = null)
     {
         EnsureNotDisposed();
         _logger.LogDebug("Encoding WearPacket to protobuf: Type={Type}, Id={Id}", packet.Type, packet.Id);
@@ -453,6 +507,7 @@ public class XiaomiBand10 : IDisposable
         }
 
         var seq = _txSeq++;
+        var ackTag = string.IsNullOrWhiteSpace(ackTagOverride) ? BuildAckTag(packet) : ackTagOverride;
         _logger.LogDebug("Creating L1 packet with seq={Seq}", seq);
         var l1Packet = l2Packet.ToL1(seq);
         
@@ -473,8 +528,10 @@ public class XiaomiBand10 : IDisposable
                 var keyToRemove = _outboundBySeq.Keys.First();
                 _outboundBySeq.Remove(keyToRemove);
                 _nakRetriesBySeq.Remove(keyToRemove);
+                _outboundAckTags.Remove(keyToRemove);
             }
             _outboundBySeq[seq] = l1Bytes;
+            _outboundAckTags[seq] = ackTag;
         }
 
         await _bluetooth.SendAsync(l1Bytes, ct);
@@ -533,7 +590,8 @@ public class XiaomiBand10 : IDisposable
         int timeoutSeconds = 10,
         CancellationToken ct = default,
         bool logRequest = true,
-        bool logResponse = true)
+        bool logResponse = true,
+        string ackTag = null)
     {
         EnsureNotDisposed();
         if (!_authHandler.IsAuthenticated)
@@ -564,7 +622,7 @@ public class XiaomiBand10 : IDisposable
 
         try
         {
-            await SendPacketAsync(packet, encrypt: true, ct);
+            await SendPacketAsync(packet, encrypt: true, ct, ackTagOverride: ackTag);
             _logger.LogDebug("Request sent, waiting for response...");
 
             // Wait for the response with timeout
@@ -611,7 +669,8 @@ public class XiaomiBand10 : IDisposable
         CancellationToken ct = default,
         int timeoutSeconds = 10,
         bool logRequest = true,
-        bool logResponse = true)
+        bool logResponse = true,
+        string ackTag = null)
     {
         EnsureNotDisposed();
 
@@ -640,10 +699,11 @@ public class XiaomiBand10 : IDisposable
             timeoutSeconds: timeoutSeconds,
             ct: ct,
             logRequest: logRequest,
-            logResponse: logResponse);
+            logResponse: logResponse,
+            ackTag: ackTag);
     }
 
-    public async Task<bool> RequestIsWearingWatchAsync(CancellationToken ct = default)
+    public async Task<bool> RequestIsWearingWatchAsync(CancellationToken ct = default, string ackTag = null)
     {
         EnsureNotDisposed();
         _logger.LogInformation("Requesting wear status...");
@@ -678,14 +738,16 @@ public class XiaomiBand10 : IDisposable
                 return false;
             },
             timeoutSeconds: 10,
-            ct: ct);
+            ct: ct,
+            ackTag: ackTag);
     }
     
     public async Task SetWatchTimeAsync(
         DateTime currentTime,
         TimeZoneInfo timeZone = null,
         bool? is12Hours = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string ackTag = null)
     {
         EnsureNotDisposed();
         timeZone ??= TimeZoneInfo.Local;
@@ -744,7 +806,17 @@ public class XiaomiBand10 : IDisposable
             Id = (uint)SystemMessage.Types.SystemID.SetSystemTime,
             System = systemMessage,
         };
-        await SendPacketAsync(packet, encrypt: true, ct);
+        await SendPacketAsync(packet, encrypt: true, ct, ackTagOverride: ackTag);
+    }
+
+    private static string BuildAckTag(WearPacket packet)
+    {
+        return packet.Type switch
+        {
+            WearPacket.Types.Type.System => $"System.{(SystemMessage.Types.SystemID)packet.Id}",
+            WearPacket.Types.Type.Account => $"Account.{(Account.Types.AccountID)packet.Id}",
+            _ => $"{packet.Type}({packet.Id})"
+        };
     }
 
     public void Dispose()
@@ -780,6 +852,8 @@ public class XiaomiBand10 : IDisposable
         {
             _outboundBySeq.Clear();
             _nakRetriesBySeq.Clear();
+            _outboundAckTags.Clear();
+            _recentAckTags.Clear();
         }
 
         GC.SuppressFinalize(this);
