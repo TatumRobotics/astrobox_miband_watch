@@ -84,6 +84,13 @@ power on
 scan on
 ```
 Then, wait until you see the Xiaomi watch. It can take a minute! It should print the MAC address and the full name of the watch (which should match the ones in your config!).
+
+Once the Xiaomi watch appears, turn off the bluetooth scan and connect to it (replace MAC_Address with the actual address of the watch):
+```bash
+scan off
+connect MAC_Address
+```
+
 Note: if you have connected to the watch from the Pi before and have just reset it, or are having issues finding it in bluetoothctl, run: `remove 04:34:C3:A4:8D:CA` in bluetoothctl (replace that with the device's MAC address).
 
 Run the `exit` command to exit out of the bluetooth command line.
@@ -110,6 +117,22 @@ You can enter in the following commands:
 - "clock" to set the system time
 - Any of the names of the patterns listed in config.yml
 
+## Xiaomi Smart Band Configuration
+For reducing the possibility of accidental touches that could lead to toggling either low power mode or a factory reset, the following settings must be enabled on the Xiaomi Smart Band once it is powered on:
+- Settings
+  - Display
+    - Auto Lock: 5 Seconds
+    - Raise to Wake: Off
+  - Notifications
+    - Wake Screen: Off
+  - Preferences
+    - Wake Methods: Swipe Up
+
+All other settings should remain default.
+
+Once the watch is configured, log the System, System Version, and Software Version found on the watch. They are found on the watch by going to:
+- Settings
+  - About
 
 ## Bluetooth Communication
 - Uses the RPI's Bluetooth Classic through BlueZ
