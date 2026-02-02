@@ -441,7 +441,149 @@ patterns:
     strength: 50
   - on: false
     duration: 100
+
+  call:
+  - on: true
+    duration: 200
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 50
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 200
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 50
+    strength: 100
+  - on: false
+    duration: 500
+  - on: true
+    duration: 200
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 50
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 200
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 50
+    strength: 100
+  - on: false
+    duration: 500
+  - on: true
+    duration: 200
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 50
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 200
+    strength: 100
+  - on: false
+    duration: 100
+  - on: true
+    duration: 50
+    strength: 100
+  - on: false
+    duration: 500
   
+  message:
+  - on: true
+    duration: 100
+    strength: 50
+  - on: false
+    duration: 200
+  - on: true
+    duration: 100 
+    strength: 50
+  - on: false
+    duration: 750
+  - on: true
+    duration: 100
+    strength: 50
+  - on: false
+    duration: 200
+  - on: true
+    duration: 100
+    strength: 50
+  - on: false
+    duration: 750
+
+  low_battery:
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 100
+  - on: false
+    duration: 250
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 75
+    strength: 100
+  - on: false
+    duration: 50
+  - on: true
+    duration: 100
+  - on: false
+    duration: 250
+
 
   jons_idea:
   - on: true
